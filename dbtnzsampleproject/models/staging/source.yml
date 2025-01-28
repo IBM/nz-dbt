@@ -1,0 +1,15 @@
+version: 2
+
+sources:
+  - name: sample_source
+    database: sampledb
+    schema: sampleschema
+    tables:
+      - name: ordrs
+        identifier: ORDERS
+
+      - name: cust
+        identifier: CUSTOMERS
+
+      - name: payments
+        identifier: PAYMENTS

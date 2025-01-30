@@ -19,8 +19,8 @@ from dbt.adapters.netezza.relation import NetezzaRelation
 from dbt.adapters.protocol import AdapterConfig
 from dbt.adapters.sql.impl import SQLAdapter, LIST_RELATIONS_MACRO_NAME
 from dbt.contracts.graph.manifest import Manifest
-from dbt.exceptions import CompilationError, DbtDatabaseError, MacroResultError
-from dbt.utils import filter_null_values, AttrDict
+from dbt_common.exceptions import CompilationError, DbtDatabaseError, MacroResultError
+from dbt_common.utils import filter_null_values, AttrDict
 from dbt.contracts.graph.nodes import ConstraintType
 
 @dataclass
@@ -152,6 +152,7 @@ class NetezzaAdapter(SQLAdapter):
     # "function sequence error"
     # Source: https://github.com/dbt-labs/dbt-core/blob/c270a77552ae9fc66fdfab359d65a8db1307c3f3/core/dbt/adapters/sql/impl.py#L223-L243
     def run_sql_for_tests(self, sql, fetch, conn):
+        print(f"run_sql_for_tests {sql} {fetch} {conn}")
         cursor = conn.handle.cursor()
         try:
             cursor.execute(sql)

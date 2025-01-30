@@ -86,7 +86,7 @@
 
 {% macro netezza__drop_schema(relation) -%}
   {%- call statement('drop_schema') -%}
-    {{ exceptions.raise_compiler_error("dbt-netezza does not support drop_schema") }}
+    {{ exceptions.raise_compiler_error("nz-dbt does not support drop_schema") }}
   {% endcall %}
 {% endmacro %}
 

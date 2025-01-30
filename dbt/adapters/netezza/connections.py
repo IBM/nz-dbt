@@ -5,15 +5,15 @@ import time
 import inspect
 
 import agate
-from dbt.clients import agate_helper
-from dbt.exceptions import DbtRuntimeError, DbtDatabaseError
-from dbt.adapters.base import Credentials
+from dbt_common.clients import agate_helper
+from dbt_common.exceptions import DbtRuntimeError, DbtDatabaseError
+from dbt.adapters.contracts.connection import Credentials
 from dbt.adapters.sql import SQLConnectionManager as connection_cls
-from dbt.events import AdapterLogger
-from dbt.events.functions import fire_event
-from dbt.events.types import ConnectionUsed, SQLQuery, SQLQueryStatus
-from dbt.contracts.connection import Connection, AdapterResponse
-from dbt.helper_types import Port
+from dbt.adapters.events.logging import AdapterLogger
+from dbt_common.events.functions import fire_event
+from dbt.adapters.events.types import ConnectionUsed, SQLQuery, SQLQueryStatus
+from dbt.adapters.contracts.connection import Connection, AdapterResponse
+from dbt_common.helper_types import Port
 import nzpy
 
 
@@ -121,7 +121,7 @@ class NetezzaConnectionManager(connection_cls):
                 "host": credentials.host,
                 "port": credentials.port,
                 "database": credentials.database,
-               # "schema": credentials.schema,
+                "logOptions": nzpy.LogOptions.Disabled
             }
 
         def connect():
@@ -224,7 +224,7 @@ class NetezzaConnectionManager(connection_cls):
     # Override to support multiple queries
     # Source: https://github.com/dbt-msft/dbt-sqlserver/blob/master/dbt/adapters/sqlserver/sql_server_connection_manager.py
     def execute(
-        self, sql: str, auto_begin: bool = False, fetch: bool = False
+        self, sql: str, auto_begin: bool = False, fetch: bool = False, limit: Optional[int] = None
     ) -> Tuple[AdapterResponse, agate.Table]:
         sql = self._add_query_comment(sql)
         _, cursor = self.add_query(sql, auto_begin)
@@ -234,7 +234,7 @@ class NetezzaConnectionManager(connection_cls):
             while cursor.description is None:
                # if not cursor.nextset():
                 break
-            table = self.get_result_from_cursor(cursor)
+            table = self.get_result_from_cursor(cursor, limit)
         else:
             table = agate_helper.empty_table()
         # Step through all result sets so we process all errors

@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import Optional,Type, TypeVar
 from dbt.adapters.base.relation import BaseRelation, Policy, Path, InformationSchema
-from dbt.contracts.relation import ComponentName, RelationType
+from dbt.adapters.contracts.relation import ComponentName, RelationType
 
 @dataclass
 class NetezzaPath(Path):

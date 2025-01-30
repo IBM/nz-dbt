@@ -54,8 +54,8 @@ def _get_dbt_core_version():
     return f"{minor}{pre}"
 
 
-package_name = "dbt-netezza"
-package_version = "1.5.0"
+package_name = "nz-dbt"
+package_version = "1.0.0"
 dbt_core_version = _get_dbt_core_version()
 description = """The Netezza adapter plugin for dbt"""
 
@@ -65,21 +65,19 @@ setup(
     description=description,
     long_description=long_description,
     long_description_content_type="text/markdown",
-    author="Joe Mirizio",
-    author_email="mirizioj@chop.edu",
-    url="https://github.com/chop-analytics/dbt-netezza",
+    author="Abhishek Jog",
+    author_email="abhishekjog@gmail.com",
+    url="https://github.com/IBM/nz-dbt",
     packages=find_namespace_packages(include=["dbt", "dbt.*"]),
     include_package_data=True,
-    # install_requires=["dbt-core~={}".format(dbt_core_version), "nzpy==1.15"],
-    install_requires=["dbt-core~=1.5.9", "nzpy==1.15"],
+    install_requires=["dbt-core==1.9.2", "nzpy==1.15"],
     zip_safe=False,
     classifiers=[
         "Operating System :: Microsoft :: Windows",
         "Operating System :: MacOS :: MacOS X",
         "Operating System :: POSIX :: Linux",
-        "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
     ],
-    python_requires=">=3.8",
+    python_requires=">=3.9",
 )

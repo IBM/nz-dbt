@@ -1,10 +1,7 @@
-# dbt-netezza
+# nz-dbt
 
-The `dbt-netezza` package contains all of the code required to make `dbt` operate on a Netezza database. For more information on using dbt, consult [their docs](https://docs.getdbt.com/docs).
+The `nz-dbt` package contains all of the code required to make `dbt` operate on a Netezza database. For more information on using dbt, consult [their docs](https://docs.getdbt.com/docs).
 
-## Netezza Configurations
-
-Code and documentation inspired by the [redshift dbt plugin](https://github.com/fishtown-analytics/dbt/tree/develop/plugins/redshift), as Netezza and Redshift share some common architectural patterns.
 
 ### Performance Optimizations
 
@@ -49,23 +46,23 @@ models:
 
 To install all the dependencies for the tool, follow these steps:
 
-1. Navigate to the `dbt-nz` directory:
+1. Navigate to the `nz-dbt` directory:
 
     ```bash
-    cd dbt-nz
+    cd nz-dbt
     ```
 
-2. Install `dbt-nz` using the command `pip install .`
+2. Install `nz-dbt` using the command `pip install .`
 
-Initialize a new dbt project using command `dbt init` and provide all the informantion prompted.
+Initialize a new dbt project using command `dbt init` and provide all the informantion prompted like project_name, hostname, database, etc. The details you put are case-sensitive.
 
-This will create the configurations of your project inside the file with path
+This will create the configuration of your project inside the file with path
 
 ```
 $HOME/.dbt/profiles.yml
 ```
 
-The configurations should look like :
+The configuration should look like:
 
 ```yaml
 dbtnzsampleproject:
@@ -106,6 +103,16 @@ Before using the `dbt seed` command, ensure that you have provided an `et_option
 > The `et_options.yml` file allows you to specify the parameters for inserting data from an external source according to your needs. For detailed information on how to configure the `et_options.yml` file and the available options, refer to the Netezza documentation here: [Netezza Option Details](https://www.ibm.com/docs/en/netezza?topic=options-option-details).
 
 Make sure your `et_options.yml` file is correctly set up in your dbt project folder before running the `dbt seed` command. This ensures that data is inserted into your tables accurately as specified in the external file.
+
+The file should look like:
+
+```yaml
+- !ETOptions
+    SkipRows: "1"
+    Delimiter: "','"
+    DateDelim: "'-'"
+    MaxErrors: " 0 "
+```
 
 ## Working with dbt Models
 

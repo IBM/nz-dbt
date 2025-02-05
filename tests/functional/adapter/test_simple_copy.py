@@ -1,19 +1,17 @@
+from dbt.tests.adapter.simple_copy.test_copy_uppercase import BaseSimpleCopyUppercase
 from dbt.tests.adapter.simple_copy.test_simple_copy import (
     SimpleCopyBase,
     EmptyModelsArentRunBase,
 )
-from dbt.tests.adapter.simple_copy.test_copy_uppercase import (
-    TestSimpleCopyUppercase as BaseSimpleCopyUppercase,
-)
 
 
-class TestSimpleCopyNetezza(SimpleCopyBase):
+class TestSimpleCopyUppercase(BaseSimpleCopyUppercase):
     pass
 
 
-class TestEmptyModelsArentRunNetezza(EmptyModelsArentRunBase):
+class TestSimpleCopyBase(SimpleCopyBase):
     pass
 
 
-class TestSimpleCopyUppercaseNetezza(BaseSimpleCopyUppercase):
+class TestEmptyModelsArentRun(EmptyModelsArentRunBase):
     pass

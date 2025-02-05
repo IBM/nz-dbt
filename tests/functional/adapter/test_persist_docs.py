@@ -1,48 +1,65 @@
+import pytest
 import json
 
+from dbt.tests.adapter.materialized_view import files
 from dbt.tests.adapter.persist_docs.test_persist_docs import (
-    BasePersistDocsBase,
     BasePersistDocs,
     BasePersistDocsColumnMissing,
     BasePersistDocsCommentOnQuotedColumn,
 )
-from dbt.tests.util import run_dbt
+from tests.functional.utils import run_dbt
+
+_MATERIALIZED_VIEW_PROPERTIES__SCHEMA_YML = """
+version: 2
+
+models:
+  - name: my_materialized_view
+    description: |
+      Materialized view model description "with double quotes"
+      and with 'single  quotes' as welll as other;
+      '''abc123'''
+      reserved -- characters
+      80% of statistics are made up on the spot
+      --
+      /* comment */
+      Some $lbl$ labeled $lbl$ and $$ unlabeled $$ dollar-quoting
+"""
 
 
-class NetezzaPersistDocsBase(BasePersistDocsBase):
-    # Override to change the column names to uppercase
-    def _assert_has_table_comments(self, table_node):
-        table_node["columns"]["id"] = table_node["columns"]["ID"]
-        table_node["columns"]["name"] = table_node["columns"]["NAME"]
-        super()._assert_has_table_comments(table_node)
-
-    # Override to change the column names to uppercase
-    def _assert_has_view_comments(
-        self, view_node, has_node_comments=True, has_column_comments=True
-    ):
-        view_node["columns"]["id"] = view_node["columns"]["ID"]
-        view_node["columns"]["name"] = view_node["columns"]["NAME"]
-        super()._assert_has_view_comments(
-            view_node, has_node_comments, has_column_comments
-        )
-
-
-class TestPersistDocsNetezza(NetezzaPersistDocsBase, BasePersistDocs):
+class TestPersistDocs(BasePersistDocs):
     pass
 
 
-class TestPersistDocsColumnMissingNetezza(BasePersistDocsColumnMissing):
-    # Override to change the column name to uppercase
-    def test_missing_column(self, project):
+class TestPersistDocsColumnMissing(BasePersistDocsColumnMissing):
+    pass
+
+
+class TestPersistDocsCommentOnQuotedColumn(BasePersistDocsCommentOnQuotedColumn):
+    pass
+
+
+class TestPersistDocsWithMaterializedView(BasePersistDocs):
+    @pytest.fixture(scope="class", autouse=True)
+    def seeds(self):
+        return {"my_seed.csv": files.MY_SEED}
+
+    @pytest.fixture(scope="class")
+    def models(self):
+        return {
+            "my_materialized_view.sql": files.MY_MATERIALIZED_VIEW,
+        }
+
+    @pytest.fixture(scope="class")
+    def properties(self):
+        return {
+            "schema.yml": _MATERIALIZED_VIEW_PROPERTIES__SCHEMA_YML,
+        }
+
+    def test_has_comments_pglike(self, project):
         run_dbt(["docs", "generate"])
         with open("target/catalog.json") as fp:
             catalog_data = json.load(fp)
         assert "nodes" in catalog_data
-
-        table_node = catalog_data["nodes"]["model.test.missing_column"]
-        table_id_comment = table_node["columns"]["ID"]["comment"]
-        assert table_id_comment.startswith("test id column description")
-
-
-class TestPersistDocsCommentOnQuotedColumnNetezza(BasePersistDocsCommentOnQuotedColumn):
-    pass
+        assert len(catalog_data["nodes"]) == 2
+        view_node = catalog_data["nodes"]["model.test.my_materialized_view"]
+        assert view_node["metadata"]["comment"].startswith("Materialized view model description")

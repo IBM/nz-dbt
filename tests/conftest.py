@@ -1,18 +1,8 @@
-# Source: https://docs.getdbt.com/docs/contributing/testing-a-new-adapter
-import pytest
-import os
+# in order to call dbt's internal profile rendering, we need to set the
+# flags global. This is a bit of a hack, but it's the best way to do it.
+from dbt.flags import set_from_args
+from argparse import Namespace
 
-# Import the dbt fixtures and custom dbt schema fixture
-pytest_plugins = ["dbt.tests.fixtures.project", "tests.dbt_schema_fixture"]
+set_from_args(Namespace(), None)
 
-
-@pytest.fixture(scope="class")
-def dbt_profile_target():
-    return {
-        "type": "netezza",
-        "threads": 4,
-        "host": os.getenv("DBT_TEST_NZ_HOST"),
-        "database": os.getenv("DBT_TEST_NZ_DB"),
-        "user": os.getenv("DBT_TEST_NZ_USER"),
-        "pass": os.getenv("DBT_TEST_NZ_PASS"),
-    }
+pytest_plugins = "dbt.tests.fixtures.project"

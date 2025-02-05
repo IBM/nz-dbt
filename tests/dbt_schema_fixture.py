@@ -6,7 +6,8 @@ import pytest
 import warnings
 from argparse import Namespace
 
-from dbt.events.functions import setup_event_logger, cleanup_event_logger
+from dbt_common.events.event_manager_client import cleanup_event_logger
+from dbt.events.logging import setup_event_logger
 from dbt.tests.fixtures.project import TestProjInfo
 from dbt.tests.util import run_sql_with_adapter, relation_from_name, get_manifest
 
@@ -54,12 +55,25 @@ def project_cleanup(
         get_manifest_relations(project_root) if project_cleanup_use_manifest else []
     )
     relations = manifest_relations + project_cleanup_extra_relations
-    drop_statements = [
-        f"drop {relation_type} {relation_from_name(adapter, relation)} if exists"
-        for relation_type, relation in relations
-    ]
-    sql = ";\n".join(drop_statements)
-    run_sql_with_adapter(adapter, sql)
+    drop_statements_table=[]
+    drop_statements_view=[]
+    for relation_type, relation in relations:
+        if relation_type == 'table':
+            drop_statements_table.append(f"drop {relation_type} {relation_from_name(adapter, relation)} if exists")
+        elif relation_type == 'view':
+            if 'failing_model' not in relation_from_name(adapter, relation):
+                drop_statements_view.append(f"drop {relation_type} {relation_from_name(adapter, relation)}")
+
+    sql_table = ";\n".join(drop_statements_table)
+    run_sql_with_adapter(adapter, sql_table)
+
+    sql_view = ";\n".join(drop_statements_view)
+    for query in drop_statements_view:
+        sql = query + ';'
+        try:
+            run_sql_with_adapter(adapter, sql)
+        except Exception as e:
+            print(f"exception is :{e}")
 
     if len(relations):
         relation_names = ", ".join(f"{rel_type} '{rel}'" for rel_type, rel in relations)

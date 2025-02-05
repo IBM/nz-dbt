@@ -1,17 +1,17 @@
 from dbt.tests.adapter.ephemeral.test_ephemeral import (
-    TestEphemeralErrorHandling as EphemeralErrorHandling,
-    TestEphemeralMulti as EphemeralMulti,
-    TestEphemeralNested as EphemeralNested,
+    BaseEphemeralMulti,
+    BaseEphemeralNested,
+    BaseEphemeralErrorHandling,
 )
 
 
-class TestEphemeralErrorHandlingNetezza(EphemeralErrorHandling):
+class TestEphemeralMulti(BaseEphemeralMulti):
     pass
 
 
-class TestEphemeralMultiNetezza(EphemeralMulti):
+class TestEphemeralNested(BaseEphemeralNested):
     pass
 
 
-class TestEphemeralNestedNetezza(EphemeralNested):
+class TestEphemeralErrorHandling(BaseEphemeralErrorHandling):
     pass

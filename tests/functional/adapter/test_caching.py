@@ -1,22 +1,22 @@
 from dbt.tests.adapter.caching.test_caching import (
     BaseCachingLowercaseModel,
-    BaseCachingUppercaseModel,
     BaseCachingSelectedSchemaOnly,
-    TestNoPopulateCache as BaseNoPopulateCache,
+    BaseCachingUppercaseModel,
+    BaseNoPopulateCache,
 )
 
 
-class TestNoPopulateCacheNetezza(BaseNoPopulateCache):
+class TestCachingLowerCaseModel(BaseCachingLowercaseModel):
     pass
 
 
-class TestCachingLowerCaseModelNetezza(BaseCachingLowercaseModel):
+class TestCachingUppercaseModel(BaseCachingUppercaseModel):
     pass
 
 
-class TestCachingUppercaseModelNetezza(BaseCachingUppercaseModel):
+class TestCachingSelectedSchemaOnly(BaseCachingSelectedSchemaOnly):
     pass
 
 
-class TestCachingSelectedSchemaOnlyNetezza(BaseCachingSelectedSchemaOnly):
+class TestNoPopulateCache(BaseNoPopulateCache):
     pass

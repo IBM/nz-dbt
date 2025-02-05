@@ -1,0 +1,40 @@
+name: Upload python package when a release is created
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  pypi-publish:
+    name: Publish release to PyPI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install setuptools wheel
+
+      - name: Build package
+        run: |
+          python setup.py sdist bdist_wheel
+
+      - name: Verify distribution files location
+        run: |
+          echo "Checking the contents of src/python/dist/"
+          ls -l /dist/
+
+      - name: Publish to PyPI
+        env:
+          PYPI_USERNAME: ${{ secrets.PYPI_USERNAME }}  # Fetch PyPI username from secrets
+          PYPI_PASSWORD: ${{ secrets.PYPI_PASSWORD }}  # Fetch PyPI password or API token from secrets
+        run: |
+          pip install twine  # Install twine to upload packages
+      #     echo "Uploading distributions to PyPI..."
+      #     twine upload src/python/dist/*  # Upload the distribution files

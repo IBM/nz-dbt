@@ -1,6 +1,7 @@
 from dbt.contracts.results import NodeStatus
 from dbt.exceptions import DuplicateResourceNameError, ParsingError
-from dbt.tests.util import get_manifest, run_dbt, write_file
+from dbt.tests.util import get_manifest, write_file
+from tests.functional.utils import run_dbt
 import pytest
 
 from tests.functional.unit_testing.fixtures import (
@@ -108,7 +109,7 @@ my_new_model = """
 select
 my_favorite_seed.id,
 a + b as c
-from {{ ref('my_favorite_seed') }} as my_favorite_seed
+from {{ ref('MY_FAVORITE_SEED') }} as my_favorite_seed
 inner join {{ ref('my_favorite_model') }} as my_favorite_model
 on my_favorite_seed.id = my_favorite_model.id
 """
@@ -132,7 +133,7 @@ unit_tests:
   - name: t
     model: my_new_model
     given:
-      - input: ref('my_favorite_seed')
+      - input: ref('MY_FAVORITE_SEED')
         rows:
           - {id: 1, a: 10}
       - input: ref('my_favorite_model')
@@ -148,7 +149,7 @@ unit_tests:
   - name: t
     model: my_new_model
     given:
-      - input: ref('my_favorite_seed')
+      - input: ref('MY_FAVORITE_SEED')
       - input: ref('my_favorite_model')
         rows:
           - {id: 1, b: 2}

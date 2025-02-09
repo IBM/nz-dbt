@@ -1,5 +1,6 @@
 from dbt.tests.fixtures.project import write_project_files
-from dbt.tests.util import get_unique_ids_in_results, run_dbt
+from dbt.tests.util import get_unique_ids_in_results
+from tests.functional.utils import run_dbt
 import pytest
 
 
@@ -11,6 +12,14 @@ version: '1.0'
 seeds:
   quote_columns: False
 
+"""
+
+local_dependency__et_options_yml = """
+- !ETOptions
+  DateDelim: '''-'''
+  Delimiter: ''','''
+  MaxErrors: '0'
+  SkipRows: '1'
 """
 
 local_dependency__schema_yml = """
@@ -72,6 +81,7 @@ class TestUnitTestingInDependency:
     def setUp(self, project_root):
         local_dependency_files = {
             "dbt_project.yml": local_dependency__dbt_project_yml,
+            "et_options.yml": local_dependency__et_options_yml,
             "models": {
                 "schema.yml": local_dependency__schema_yml,
                 "dep_model.sql": local_dependency__dep_model_sql,

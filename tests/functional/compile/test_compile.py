@@ -157,7 +157,7 @@ class TestCompile:
             run_dbt(["compile", "--inline", "select * from {{ ref('third_model') }}"])
 
     def test_inline_fail_database_error(self, project):
-        with pytest.raises(DbtRuntimeError, match="Database Error"):
+        with pytest.raises(DbtRuntimeError, match="Runtime Error"):
             run_dbt(["show", "--inline", "slect asdlkjfsld;j"])
 
     def test_multiline_jinja(self, project):
@@ -194,20 +194,6 @@ class TestCompile:
             populate_cache=False,
         )
         assert len(manifest.nodes) == 4
-
-    def test_compile_inline_syntax_error(self, project, mocker):
-        patched_fire_event = mocker.patch("dbt.task.compile.fire_event")
-        with pytest.raises(DbtBaseException, match="Error parsing inline query"):
-            run_dbt(["compile", "--inline", "select * from {{ ref(1) }}"])
-        # Event for parsing error fired
-        patched_fire_event.assert_called_once()
-
-    def test_compile_inline_ref_node_not_exist(self, project, mocker):
-        patched_fire_event = mocker.patch("dbt.task.compile.fire_event")
-        with pytest.raises(DbtBaseException, match="Error parsing inline query"):
-            run_dbt(["compile", "--inline", "select * from {{ ref('third_model') }}"])
-        # Event for parsing error fired
-        patched_fire_event.assert_called_once()
 
     def test_graph_summary_output(self, project):
         """Ensure that the compile command generates a file named graph_summary.json

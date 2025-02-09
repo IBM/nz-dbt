@@ -1,8 +1,9 @@
 import os
 import yaml
+from typing import Dict
   
 class ETOptions:
-    def __init__(self, options):
+    def __init__(self, options: Dict):
         self.options = options
         
            
@@ -14,6 +15,10 @@ def et_options_constructor(loader, node):
     values = loader.construct_mapping(node)
     et_options_obj: ETOptions = ETOptions(values)
     return et_options_obj
+
+
+def etoptions_representer(dumper, data: ETOptions):
+    return dumper.represent_mapping('!ETOptions', { k: v for k,v in data.options.items()})
 
 
 def parse_et_options_yaml(file_path):

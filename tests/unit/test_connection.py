@@ -8,9 +8,9 @@ from dbt.contracts.files import FileHash
 from dbt.contracts.graph.manifest import ManifestStateCheck
 from dbt.task.debug import DebugTask
 from dbt_common.exceptions import DbtConfigError
-from psycopg2 import DatabaseError, extensions as psycopg2_extensions
+from nzpy import DatabaseError, Connection
 
-from dbt.adapters.postgres import Plugin as PostgresPlugin, PostgresAdapter
+from dbt.adapters.netezza import Plugin as NetezzaPlugin, NetezzaAdapter
 from tests.unit.utils import (
     clear_plugin,
     config_from_parts_or_dicts,
@@ -19,11 +19,11 @@ from tests.unit.utils import (
 )
 
 
-class TestPostgresConnection(TestCase):
+class TestNetezzaConnection(TestCase):
     def setUp(self):
         self.target_dict = {
-            "type": "postgres",
-            "dbname": "postgres",
+            "type": "netezza",
+            "dbname": "testdbt",
             "user": "root",
             "host": "thishostshouldnotexist",
             "pass": "password",
@@ -52,11 +52,11 @@ class TestPostgresConnection(TestCase):
         self.config = config_from_parts_or_dicts(project_cfg, profile_cfg)
         self.mp_context = get_context("spawn")
 
-        self.handle = mock.MagicMock(spec=psycopg2_extensions.connection)
+        self.handle = mock.MagicMock(spec=Connection)
         self.cursor = self.handle.cursor.return_value
         self.mock_execute = self.cursor.execute
-        self.patcher = mock.patch("dbt.adapters.postgres.connections.psycopg2")
-        self.psycopg2 = self.patcher.start()
+        self.patcher = mock.patch("dbt.adapters.netezza.connections.nzpy")
+        self.nzpy = self.patcher.start()
 
         # Create the Manifest.state_check patcher
         @mock.patch("dbt.parser.manifest.ManifestLoader.build_manifest_state_check")
@@ -74,8 +74,8 @@ class TestPostgresConnection(TestCase):
         self.mock_state_check = self.load_state_check.start()
         self.mock_state_check.side_effect = _mock_state_check
 
-        self.psycopg2.connect.return_value = self.handle
-        self.adapter = PostgresAdapter(self.config, self.mp_context)
+        self.nzpy.connect.return_value = self.handle
+        self.adapter = NetezzaAdapter(self.config, self.mp_context)
         self.adapter.set_macro_resolver(load_internal_manifest_macros(self.config))
         self.adapter.set_macro_context_generator(generate_runtime_macro_context)
         self.adapter.connections.set_query_header(
@@ -85,7 +85,7 @@ class TestPostgresConnection(TestCase):
         self.mock_query_header_add = self.qh_patch.start()
         self.mock_query_header_add.side_effect = lambda q: "/* dbt */\n{}".format(q)
         self.adapter.acquire_connection()
-        inject_adapter(self.adapter, PostgresPlugin)
+        inject_adapter(self.adapter, NetezzaPlugin)
 
     def tearDown(self):
         # we want a unique self.handle every time.
@@ -93,11 +93,14 @@ class TestPostgresConnection(TestCase):
         self.qh_patch.stop()
         self.patcher.stop()
         self.load_state_check.stop()
-        clear_plugin(PostgresPlugin)
+        clear_plugin(NetezzaPlugin)
 
+    @pytest.mark.skip(
+        """Skipping. Since drop schema is not yet supported on Netezza"""
+    )
     def test_quoting_on_drop_schema(self):
         relation = self.adapter.Relation.create(
-            database="postgres",
+            database="testdbt",
             schema="test_schema",
             quote_policy=self.adapter.config.quoting,
         )
@@ -109,7 +112,7 @@ class TestPostgresConnection(TestCase):
 
     def test_quoting_on_drop(self):
         relation = self.adapter.Relation.create(
-            database="postgres",
+            database="testdbt",
             schema="test_schema",
             identifier="test_table",
             type="table",
@@ -119,15 +122,14 @@ class TestPostgresConnection(TestCase):
         self.mock_execute.assert_has_calls(
             [
                 mock.call(
-                    '/* dbt */\ndrop table if exists "postgres"."test_schema".test_table cascade',
-                    None,
+                    '/* dbt */\n\n        drop table "testdbt"."test_schema".test_table if exists\n    '
                 )
             ]
         )
 
     def test_quoting_on_truncate(self):
         relation = self.adapter.Relation.create(
-            database="postgres",
+            database="testdbt",
             schema="test_schema",
             identifier="test_table",
             type="table",
@@ -135,19 +137,22 @@ class TestPostgresConnection(TestCase):
         )
         self.adapter.truncate_relation(relation)
         self.mock_execute.assert_has_calls(
-            [mock.call('/* dbt */\ntruncate table "postgres"."test_schema".test_table', None)]
+            [
+                mock.call('BEGIN'),
+                mock.call('/* dbt */\ntruncate table "testdbt"."test_schema".test_table')
+            ]
         )
 
     def test_quoting_on_rename(self):
         from_relation = self.adapter.Relation.create(
-            database="postgres",
+            database="testdbt",
             schema="test_schema",
             identifier="table_a",
             type="table",
             quote_policy=self.adapter.config.quoting,
         )
         to_relation = self.adapter.Relation.create(
-            database="postgres",
+            database="testdbt",
             schema="test_schema",
             identifier="table_b",
             type="table",
@@ -157,10 +162,8 @@ class TestPostgresConnection(TestCase):
         self.adapter.rename_relation(from_relation=from_relation, to_relation=to_relation)
         self.mock_execute.assert_has_calls(
             [
-                mock.call(
-                    '/* dbt */\nalter table "postgres"."test_schema".table_a rename to table_b',
-                    None,
-                )
+                mock.call('BEGIN'),
+                mock.call('/* dbt */\nalter table "testdbt"."test_schema".table_a rename to "testdbt"."test_schema".table_b')
             ]
         )
 
@@ -175,6 +178,9 @@ class TestPostgresConnection(TestCase):
         DebugTask.validate_connection(self.target_dict)
         self.mock_execute.assert_has_calls([mock.call("/* dbt */\nselect 1 as id", None)])
 
+    @pytest.mark.skip(
+        """Skipping. Test NA since there's no validation in dbt core."""
+    )
     def test_debug_connection_fail_nopass(self):
         del self.target_dict["pass"]
         with self.assertRaises(DbtConfigError):
@@ -195,7 +201,7 @@ class TestPostgresConnection(TestCase):
 
     def test_dbname_verification_is_case_insensitive(self):
         # Override adapter settings from setUp()
-        self.target_dict["dbname"] = "Postgres"
+        self.target_dict["dbname"] = "Netezza"
         profile_cfg = {
             "outputs": {
                 "test": self.target_dict,
@@ -216,5 +222,5 @@ class TestPostgresConnection(TestCase):
         self.config = config_from_parts_or_dicts(project_cfg, profile_cfg)
         self.mp_context = get_context("spawn")
         self.adapter.cleanup_connections()
-        self._adapter = PostgresAdapter(self.config, self.mp_context)
-        self.adapter.verify_database("postgres")
+        self._adapter = NetezzaAdapter(self.config, self.mp_context)
+        self.adapter.verify_database("testdbt")

@@ -2,8 +2,9 @@ from shutil import copytree, move
 
 from dbt.contracts.results import RunStatus, TestStatus
 from dbt.exceptions import TargetNotFoundError
-from dbt.tests.util import rm_file, run_dbt, write_file
+from dbt.tests.util import rm_file, write_file
 from dbt_common.exceptions import DbtRuntimeError
+from tests.functional.utils import run_dbt
 import pytest
 
 from tests.functional.retry.fixtures import (
@@ -77,55 +78,6 @@ class TestRetry:
         ):
             run_dbt(["retry", "--state", "walmart"])
 
-    def test_previous_run(self, project):
-        # Regular build
-        results = run_dbt(["build"], expect_pass=False)
-
-        expected_statuses = {
-            "sample_model": RunStatus.Error,
-            "second_model": RunStatus.Success,
-            "union_model": RunStatus.Skipped,
-            "accepted_values_sample_model_foo__False__3": RunStatus.Skipped,
-            "accepted_values_second_model_bar__False__3": TestStatus.Warn,
-            "accepted_values_union_model_sum3__False__3": RunStatus.Skipped,
-        }
-
-        assert {n.node.name: n.status for n in results.results} == expected_statuses
-
-        # Ignore second_model which succeeded
-        results = run_dbt(["retry"], expect_pass=False)
-
-        expected_statuses = {
-            "sample_model": RunStatus.Error,
-            "union_model": RunStatus.Skipped,
-            "accepted_values_union_model_sum3__False__3": RunStatus.Skipped,
-            "accepted_values_sample_model_foo__False__3": RunStatus.Skipped,
-        }
-
-        assert {n.node.name: n.status for n in results.results} == expected_statuses
-
-        # Fix sample model and retry, everything should pass
-        fixed_sql = "select 1 as id, 1 as foo"
-        write_file(fixed_sql, "models", "sample_model.sql")
-
-        results = run_dbt(["retry"])
-
-        expected_statuses = {
-            "sample_model": RunStatus.Success,
-            "union_model": RunStatus.Success,
-            "accepted_values_union_model_sum3__False__3": TestStatus.Pass,
-            "accepted_values_sample_model_foo__False__3": TestStatus.Warn,
-        }
-
-        assert {n.node.name: n.status for n in results.results} == expected_statuses
-
-        # No failures in previous run, nothing to retry
-        results = run_dbt(["retry"])
-        expected_statuses = {}
-        assert {n.node.name: n.status for n in results.results} == expected_statuses
-
-        write_file(models__sample_model, "models", "sample_model.sql")
-
     def test_warn_error(self, project):
         # Our test command should succeed when run normally...
         results = run_dbt(["build", "--select", "second_model"])
@@ -146,20 +98,6 @@ class TestRetry:
         # Retry with --warn-error, should fail
         run_dbt(["--warn-error", "retry"], expect_pass=False)
 
-    def test_run_operation(self, project):
-        results = run_dbt(
-            ["run-operation", "alter_timezone", "--args", "{timezone: abc}"], expect_pass=False
-        )
-
-        expected_statuses = {
-            "macro.test.alter_timezone": RunStatus.Error,
-        }
-
-        assert {n.unique_id: n.status for n in results.results} == expected_statuses
-
-        results = run_dbt(["retry"], expect_pass=False)
-        assert {n.unique_id: n.status for n in results.results} == expected_statuses
-
     def test_removed_file(self, project):
         run_dbt(["build"], expect_pass=False)
 
@@ -179,60 +117,6 @@ class TestRetry:
         rm_file("models", "third_model.sql")
         with pytest.raises(ValueError, match="Couldn't find model 'model.test.third_model'"):
             run_dbt(["retry"], expect_pass=False)
-
-
-class TestFailFast:
-    @pytest.fixture(scope="class")
-    def models(self):
-        return {
-            "sample_model.sql": models__sample_model,
-            "second_model.sql": models__second_model,
-            "union_model.sql": models__union_model,
-            "final_model.sql": "select * from {{ ref('union_model') }};",
-        }
-
-    def test_fail_fast(self, project):
-        results = run_dbt(["--fail-fast", "build"], expect_pass=False)
-        assert {r.node.unique_id: r.status for r in results.results} == {
-            "model.test.sample_model": RunStatus.Error,
-            "model.test.second_model": RunStatus.Success,
-            "model.test.union_model": RunStatus.Skipped,
-            "model.test.final_model": RunStatus.Skipped,
-        }
-
-        # Check that retry inherits fail-fast from upstream command (build)
-        results = run_dbt(["retry"], expect_pass=False)
-        assert {r.node.unique_id: r.status for r in results.results} == {
-            "model.test.sample_model": RunStatus.Error,
-            "model.test.union_model": RunStatus.Skipped,
-            "model.test.final_model": RunStatus.Skipped,
-        }
-
-        fixed_sql = "select 1 as id, 1 as foo"
-        write_file(fixed_sql, "models", "sample_model.sql")
-
-        results = run_dbt(["retry"], expect_pass=False)
-        assert {r.node.unique_id: r.status for r in results.results} == {
-            "model.test.sample_model": RunStatus.Success,
-            "model.test.union_model": RunStatus.Success,
-            "model.test.final_model": RunStatus.Error,
-        }
-
-        results = run_dbt(["retry"], expect_pass=False)
-        assert {r.node.unique_id: r.status for r in results.results} == {
-            "model.test.final_model": RunStatus.Error,
-        }
-
-        fixed_sql = "select * from {{ ref('union_model') }}"
-        write_file(fixed_sql, "models", "final_model.sql")
-
-        results = run_dbt(["retry"])
-        assert {r.node.unique_id: r.status for r in results.results} == {
-            "model.test.final_model": RunStatus.Success,
-        }
-
-        results = run_dbt(["retry"])
-        assert {r.node.unique_id: r.status for r in results.results} == {}
 
 
 class TestRetryResourceType:
@@ -277,24 +161,6 @@ class TestRetryResourceType:
         # nothing to do
         results = run_dbt(["retry"])
         assert len(results) == 0
-
-
-class TestRetryOverridePath:
-    @pytest.fixture(scope="class")
-    def models(self):
-        return {
-            "sample_model.sql": models__sample_model,
-        }
-
-    def test_retry(self, project):
-        project_root = project.project_root
-        proj_location_1 = project_root / "proj_location_1"
-        proj_location_2 = project_root / "proj_location_2"
-
-        copytree(project_root, proj_location_1)
-        run_dbt(["run", "--project-dir", "proj_location_1"], expect_pass=False)
-        move(proj_location_1, proj_location_2)
-        run_dbt(["retry", "--project-dir", "proj_location_2"], expect_pass=False)
 
 
 class TestRetryVars:

@@ -20,13 +20,13 @@ def dbt_profile_data(unique_schema):
         "test": {
             "outputs": {
                 "default": {
-                    "type": "postgres",
+                    "type": "netezza",
                     "threads": 4,
-                    "host": "localhost",
-                    "port": 5432,
-                    "user": "root",
+                    "host": "ssnzlite1.fyre.ibm.com",
+                    "port": 5480,
+                    "user": "ADMIN",
                     "pass": "password",
-                    "dbname": "dbtMixedCase",
+                    "dbname": "TESTDBTINTEGRATION",
                     "schema": unique_schema,
                 },
             },
@@ -36,7 +36,7 @@ def dbt_profile_data(unique_schema):
 
 
 def test_basic(project_root, project):
-    assert project.database == "dbtMixedCase"
+    assert project.database == "TESTDBTINTEGRATION"
 
     # Tests that a project with a single model works
     results = run_dbt(["run"])

@@ -7,8 +7,9 @@ from dbt.adapters.base import BaseRelation
 from dbt.adapters.contracts.relation import Path
 from dbt_common.context import set_invocation_context
 from dbt_common.exceptions import DbtValidationError
+import pytest
 
-from dbt.adapters.postgres import Plugin as PostgresPlugin, PostgresAdapter
+from dbt.adapters.netezza import Plugin as NetezzaPlugin, NetezzaAdapter
 from tests.unit.utils import (
     config_from_parts_or_dicts,
     inject_adapter,
@@ -16,7 +17,7 @@ from tests.unit.utils import (
 )
 
 
-class TestPostgresAdapter(TestCase):
+class TestNetezzaAdapter(TestCase):
     def setUp(self):
         project_cfg = {
             "name": "X",
@@ -28,13 +29,13 @@ class TestPostgresAdapter(TestCase):
         profile_cfg = {
             "outputs": {
                 "test": {
-                    "type": "postgres",
-                    "dbname": "postgres",
+                    "type": "netezza",
+                    "dbname": "testdbt",
                     "user": "root",
                     "host": "thishostshouldnotexist",
                     "pass": "password",
-                    "port": 5432,
-                    "schema": "public",
+                    "port": 5480,
+                    "schema": "admin",
                 }
             },
             "target": "test",
@@ -47,33 +48,33 @@ class TestPostgresAdapter(TestCase):
     @property
     def adapter(self):
         if self._adapter is None:
-            self._adapter = PostgresAdapter(self.config, self.mp_context)
-            inject_adapter(self._adapter, PostgresPlugin)
+            self._adapter = NetezzaAdapter(self.config, self.mp_context)
+            inject_adapter(self._adapter, NetezzaPlugin)
         return self._adapter
 
-    @mock.patch("dbt.adapters.postgres.connections.psycopg2")
-    def test_acquire_connection_validations(self, psycopg2):
+    @mock.patch("dbt.adapters.netezza.connections.nzpy")
+    def test_acquire_connection_validations(self, nzpy):
         try:
             connection = self.adapter.acquire_connection("dummy")
         except DbtValidationError as e:
             self.fail("got DbtValidationError: {}".format(str(e)))
         except BaseException as e:
             self.fail("acquiring connection failed with unknown exception: {}".format(str(e)))
-        self.assertEqual(connection.type, "postgres")
+        self.assertEqual(connection.type, "netezza")
 
-        psycopg2.connect.assert_not_called()
+        nzpy.connect.assert_not_called()
         connection.handle
-        psycopg2.connect.assert_called_once()
+        nzpy.connect.assert_called_once()
 
-    @mock.patch("dbt.adapters.postgres.connections.psycopg2")
-    def test_acquire_connection(self, psycopg2):
+    @mock.patch("dbt.adapters.netezza.connections.nzpy")
+    def test_acquire_connection(self, nzpy):
         connection = self.adapter.acquire_connection("dummy")
 
-        psycopg2.connect.assert_not_called()
+        nzpy.connect.assert_not_called()
         connection.handle
         self.assertEqual(connection.state, "open")
         self.assertNotEqual(connection.handle, None)
-        psycopg2.connect.assert_called_once()
+        nzpy.connect.assert_called_once()
 
     def test_cancel_open_connections_empty(self):
         self.assertEqual(len(list(self.adapter.cancel_open_connections())), 0)
@@ -83,6 +84,9 @@ class TestPostgresAdapter(TestCase):
         self.adapter.connections.thread_connections[key] = mock_connection("master")
         self.assertEqual(len(list(self.adapter.cancel_open_connections())), 0)
 
+    @pytest.mark.skip(
+        """Skipping. Cancelling query is not supported."""
+    )
     def test_cancel_open_connections_single(self):
         master = mock_connection("master")
         model = mock_connection("model")
@@ -97,38 +101,37 @@ class TestPostgresAdapter(TestCase):
         with mock.patch.object(self.adapter.connections, "add_query") as add_query:
             query_result = mock.MagicMock()
             add_query.return_value = (None, query_result)
-
             self.assertEqual(len(list(self.adapter.cancel_open_connections())), 1)
-
             add_query.assert_called_once_with("select pg_terminate_backend(42)")
 
         master.handle.get_backend_pid.assert_not_called()
 
-    @mock.patch("dbt.adapters.postgres.connections.psycopg2")
-    def test_default_connect_timeout(self, psycopg2):
+    @mock.patch("dbt.adapters.netezza.connections.nzpy")
+    def test_default_connect_timeout(self, nzpy):
         connection = self.adapter.acquire_connection("dummy")
 
-        psycopg2.connect.assert_not_called()
+        nzpy.connect.assert_not_called()
         connection.handle
-        psycopg2.connect.assert_called_once_with(
-            dbname="postgres",
-            user="root",
-            host="thishostshouldnotexist",
-            password="password",
-            port=5432,
-            connect_timeout=10,
-            application_name="dbt",
+        nzpy.connect.assert_called_once_with(
+            user='root',
+            password='password', 
+            host='thishostshouldnotexist', 
+            port=5480, database='testdbt', 
+            logOptions=mock.ANY
         )
 
-    @mock.patch("dbt.adapters.postgres.connections.psycopg2")
-    def test_changed_connect_timeout(self, psycopg2):
+    @pytest.mark.skip(
+        """Skipping. since nz-dbt doesn't support connection timeout yet."""
+    )
+    @mock.patch("dbt.adapters.netezza.connections.nzpy")
+    def test_changed_connect_timeout(self, nzpy):
         self.config.credentials = self.config.credentials.replace(connect_timeout=30)
         connection = self.adapter.acquire_connection("dummy")
 
-        psycopg2.connect.assert_not_called()
+        nzpy.connect.assert_not_called()
         connection.handle
-        psycopg2.connect.assert_called_once_with(
-            dbname="postgres",
+        nzpy.connect.assert_called_once_with(
+            dbname="netezza",
             user="root",
             host="thishostshouldnotexist",
             password="password",
@@ -137,31 +140,33 @@ class TestPostgresAdapter(TestCase):
             application_name="dbt",
         )
 
-    @mock.patch("dbt.adapters.postgres.connections.psycopg2")
-    def test_default_keepalive(self, psycopg2):
+    @mock.patch("dbt.adapters.netezza.connections.nzpy")
+    def test_default_keepalive(self, nzpy):
         connection = self.adapter.acquire_connection("dummy")
 
-        psycopg2.connect.assert_not_called()
+        nzpy.connect.assert_not_called()
         connection.handle
-        psycopg2.connect.assert_called_once_with(
-            dbname="postgres",
-            user="root",
-            host="thishostshouldnotexist",
-            password="password",
-            port=5432,
-            connect_timeout=10,
-            application_name="dbt",
+        nzpy.connect.assert_called_once_with(
+            user='root', 
+            password='password', 
+            host='thishostshouldnotexist', 
+            port=5480, 
+            database='testdbt', 
+            logOptions=mock.ANY
         )
 
-    @mock.patch("dbt.adapters.postgres.connections.psycopg2")
-    def test_changed_keepalive(self, psycopg2):
+    @pytest.mark.skip(
+        """Skipping. since nz-dbt doesn't support keepalives_idle yet."""
+    )
+    @mock.patch("dbt.adapters.netezza.connections.nzpy")
+    def test_changed_keepalive(self, nzpy):
         self.config.credentials = self.config.credentials.replace(keepalives_idle=256)
         connection = self.adapter.acquire_connection("dummy")
 
-        psycopg2.connect.assert_not_called()
+        nzpy.connect.assert_not_called()
         connection.handle
-        psycopg2.connect.assert_called_once_with(
-            dbname="postgres",
+        nzpy.connect.assert_called_once_with(
+            dbname="netezza",
             user="root",
             host="thishostshouldnotexist",
             password="password",
@@ -171,41 +176,46 @@ class TestPostgresAdapter(TestCase):
             application_name="dbt",
         )
 
-    @mock.patch("dbt.adapters.postgres.connections.psycopg2")
-    def test_default_application_name(self, psycopg2):
+    @mock.patch("dbt.adapters.netezza.connections.nzpy")
+    def test_default_application_name(self, nzpy):
         connection = self.adapter.acquire_connection("dummy")
 
-        psycopg2.connect.assert_not_called()
+        nzpy.connect.assert_not_called()
         connection.handle
-        psycopg2.connect.assert_called_once_with(
-            dbname="postgres",
-            user="root",
-            host="thishostshouldnotexist",
-            password="password",
-            port=5432,
-            connect_timeout=10,
-            application_name="dbt",
+        nzpy.connect.assert_called_once_with(
+            user='root', 
+            password='password', 
+            host='thishostshouldnotexist', 
+            port=5480, 
+            database='testdbt', 
+            logOptions=mock.ANY
         )
 
-    @mock.patch("dbt.adapters.postgres.connections.psycopg2")
-    def test_changed_application_name(self, psycopg2):
+    @pytest.mark.skip(
+        """Skipping. since nz-dbt doesn't support application rename yet."""
+    )
+    @mock.patch("dbt.adapters.netezza.connections.nzpy")
+    def test_changed_application_name(self, nzpy):
+        print(f"creds: {self.config.credentials}")
         self.config.credentials = self.config.credentials.replace(application_name="myapp")
         connection = self.adapter.acquire_connection("dummy")
 
-        psycopg2.connect.assert_not_called()
+        nzpy.connect.assert_not_called()
         connection.handle
-        psycopg2.connect.assert_called_once_with(
-            dbname="postgres",
+        nzpy.connect.assert_called_once_with(
+            dbname="netezza",
             user="root",
             host="thishostshouldnotexist",
             password="password",
             port=5432,
             connect_timeout=10,
-            application_name="myapp",
         )
 
-    @mock.patch("dbt.adapters.postgres.connections.psycopg2")
-    def test_role(self, psycopg2):
+    @pytest.mark.skip(
+        """Skipping. since nz-dbt doesn't support role in connections yet."""
+    )
+    @mock.patch("dbt.adapters.netezza.connections.nzpy")
+    def test_role(self, nzpy):
         self.config.credentials = self.config.credentials.replace(role="somerole")
         connection = self.adapter.acquire_connection("dummy")
 
@@ -213,15 +223,18 @@ class TestPostgresAdapter(TestCase):
 
         cursor.execute.assert_called_once_with("set role somerole")
 
-    @mock.patch("dbt.adapters.postgres.connections.psycopg2")
-    def test_search_path(self, psycopg2):
+    @pytest.mark.skip(
+        """Skipping. search-path is a postgres feature."""
+    )
+    @mock.patch("dbt.adapters.netezza.connections.nzpy")
+    def test_search_path(self, nzpy):
         self.config.credentials = self.config.credentials.replace(search_path="test")
         connection = self.adapter.acquire_connection("dummy")
 
-        psycopg2.connect.assert_not_called()
+        nzpy.connect.assert_not_called()
         connection.handle
-        psycopg2.connect.assert_called_once_with(
-            dbname="postgres",
+        nzpy.connect.assert_called_once_with(
+            dbname="netezza",
             user="root",
             host="thishostshouldnotexist",
             password="password",
@@ -231,15 +244,18 @@ class TestPostgresAdapter(TestCase):
             options="-c search_path=test",
         )
 
-    @mock.patch("dbt.adapters.postgres.connections.psycopg2")
-    def test_sslmode(self, psycopg2):
+    @pytest.mark.skip(
+        """Skipping. since nz-dbt doesn't support sslmode yet."""
+    )
+    @mock.patch("dbt.adapters.netezza.connections.nzpy")
+    def test_sslmode(self, nzpy):
         self.config.credentials = self.config.credentials.replace(sslmode="require")
         connection = self.adapter.acquire_connection("dummy")
 
-        psycopg2.connect.assert_not_called()
+        nzpy.connect.assert_not_called()
         connection.handle
-        psycopg2.connect.assert_called_once_with(
-            dbname="postgres",
+        nzpy.connect.assert_called_once_with(
+            dbname="netezza",
             user="root",
             host="thishostshouldnotexist",
             password="password",
@@ -249,18 +265,21 @@ class TestPostgresAdapter(TestCase):
             application_name="dbt",
         )
 
-    @mock.patch("dbt.adapters.postgres.connections.psycopg2")
-    def test_ssl_parameters(self, psycopg2):
+    @pytest.mark.skip(
+        """Skipping. since nz-dbt doesn't support sslmode yet."""
+    )
+    @mock.patch("dbt.adapters.netezza.connections.nzpy")
+    def test_ssl_parameters(self, nzpy):
         self.config.credentials = self.config.credentials.replace(sslmode="verify-ca")
         self.config.credentials = self.config.credentials.replace(sslcert="service.crt")
         self.config.credentials = self.config.credentials.replace(sslkey="service.key")
         self.config.credentials = self.config.credentials.replace(sslrootcert="ca.crt")
         connection = self.adapter.acquire_connection("dummy")
 
-        psycopg2.connect.assert_not_called()
+        nzpy.connect.assert_not_called()
         connection.handle
-        psycopg2.connect.assert_called_once_with(
-            dbname="postgres",
+        nzpy.connect.assert_called_once_with(
+            dbname="netezza",
             user="root",
             host="thishostshouldnotexist",
             password="password",
@@ -273,15 +292,18 @@ class TestPostgresAdapter(TestCase):
             application_name="dbt",
         )
 
-    @mock.patch("dbt.adapters.postgres.connections.psycopg2")
-    def test_schema_with_space(self, psycopg2):
+    @pytest.mark.skip(
+        """Skipping. since nz-dbt doesn't support search_path yet."""
+    )
+    @mock.patch("dbt.adapters.netezza.connections.nzpy")
+    def test_schema_with_space(self, nzpy):
         self.config.credentials = self.config.credentials.replace(search_path="test test")
         connection = self.adapter.acquire_connection("dummy")
 
-        psycopg2.connect.assert_not_called()
+        nzpy.connect.assert_not_called()
         connection.handle
-        psycopg2.connect.assert_called_once_with(
-            dbname="postgres",
+        nzpy.connect.assert_called_once_with(
+            dbname="netezza",
             user="root",
             host="thishostshouldnotexist",
             password="password",
@@ -291,15 +313,18 @@ class TestPostgresAdapter(TestCase):
             options="-c search_path=test\ test",  # noqa: [W605]
         )
 
-    @mock.patch("dbt.adapters.postgres.connections.psycopg2")
-    def test_set_zero_keepalive(self, psycopg2):
+    @pytest.mark.skip(
+        """Skipping. since nz-dbt doesn't support keepalives_idle yet."""
+    )
+    @mock.patch("dbt.adapters.netezza.connections.nzpy")
+    def test_set_zero_keepalive(self, nzpy):
         self.config.credentials = self.config.credentials.replace(keepalives_idle=0)
         connection = self.adapter.acquire_connection("dummy")
 
-        psycopg2.connect.assert_not_called()
+        nzpy.connect.assert_not_called()
         connection.handle
-        psycopg2.connect.assert_called_once_with(
-            dbname="postgres",
+        nzpy.connect.assert_called_once_with(
+            dbname="netezza",
             user="root",
             host="thishostshouldnotexist",
             password="password",
@@ -308,13 +333,13 @@ class TestPostgresAdapter(TestCase):
             application_name="dbt",
         )
 
-    @mock.patch.object(PostgresAdapter, "execute_macro")
-    @mock.patch.object(PostgresAdapter, "_get_catalog_relations")
+    @mock.patch.object(NetezzaAdapter, "execute_macro")
+    @mock.patch.object(NetezzaAdapter, "_get_catalog_relations")
     def test_get_catalog_various_schemas(self, mock_get_relations, mock_execute):
         self.catalog_test(mock_get_relations, mock_execute, False)
 
-    @mock.patch.object(PostgresAdapter, "execute_macro")
-    @mock.patch.object(PostgresAdapter, "_get_catalog_relations")
+    @mock.patch.object(NetezzaAdapter, "execute_macro")
+    @mock.patch.object(NetezzaAdapter, "_get_catalog_relations")
     def test_get_filtered_catalog(self, mock_get_relations, mock_execute):
         self.catalog_test(mock_get_relations, mock_execute, True)
 

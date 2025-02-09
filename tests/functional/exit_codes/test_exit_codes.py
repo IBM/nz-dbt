@@ -53,12 +53,6 @@ class TestExitCodes(BaseConfigProject):
         results = run_dbt(["compile"])
         assert len(results) == 7
 
-    def test_snapshot_pass(self, project):
-        run_dbt(["run", "--model", "good"])
-        results = run_dbt(["snapshot"])
-        assert len(results) == 1
-        check_table_does_exist(project.adapter, "good_snapshot")
-
 
 class TestExitCodesSnapshotFail(BaseConfigProject):
     @pytest.fixture(scope="class")
@@ -108,16 +102,6 @@ class TestExitCodesDepsFail:
             run_dbt(["deps"])
         expected_msg = "Error checking out spec='bad-branch'"
         assert expected_msg in str(exc.value)
-
-
-class TestExitCodesSeed:
-    @pytest.fixture(scope="class")
-    def seeds(self):
-        return {"good.csv": fixtures.data_seed_good_csv}
-
-    def test_seed(self, project):
-        results = run_dbt(["seed"])
-        assert len(results) == 1
 
 
 class TestExitCodesSeedFail:

@@ -1,5 +1,5 @@
-from dbt.tests.util import run_dbt
 from dbt_common.exceptions import CompilationError
+from tests.functional.utils import run_dbt
 import pytest
 
 

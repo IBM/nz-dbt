@@ -6,7 +6,7 @@ import pytest
 import warnings
 from argparse import Namespace
 
-from dbt.events.functions import setup_event_logger, cleanup_event_logger
+from dbt.events.logging import setup_event_logger, cleanup_event_logger
 from dbt.tests.fixtures.project import TestProjInfo
 from dbt.tests.util import run_sql_with_adapter, relation_from_name, get_manifest
 

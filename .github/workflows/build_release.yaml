@@ -28,7 +28,7 @@ jobs:
       - name: Verify distribution files location
         run: |
           echo "Checking the contents of src/python/dist/"
-          ls -l dist/
+          ls -l /dist/
 
       - name: Publish to PyPI
         env:

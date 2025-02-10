@@ -28,7 +28,7 @@ jobs:
       - name: Verify distribution files location
         run: |
           echo "Checking the contents of src/python/dist/"
-          ls -l /dist/
+          ls -l dist/
 
       - name: Publish to PyPI
         env:
@@ -37,5 +37,4 @@ jobs:
         run: |
           pip install twine  # Install twine to upload packages
           echo "Uploading distributions to PyPI..."
-          echo "The username for pypi is : $PYPI_USERNAME"
-          # twine upload src/python/dist/*  # Upload the distribution files
+          twine upload src/python/dist/*  # Upload the distribution files

@@ -1,17 +1,14 @@
-from dbt.adapters.postgres.relation import PostgresRelation
+from dbt.adapters.netezza.relation import NetezzaRelation
 from dbt.adapters.contracts.relation import RelationType
 
 
 def test_renameable_relation():
-    relation = PostgresRelation.create(
-        database="my_db",
+    relation = NetezzaRelation.create(
+        database="testdbt",
         schema="my_schema",
         identifier="my_table",
         type=RelationType.Table,
     )
-    assert relation.renameable_relations == frozenset(
-        {
-            RelationType.View,
-            RelationType.Table,
-        }
-    )
+    assert relation.renameable_relations == frozenset()
+    # NetezzaRelation doesn't contain renameable_relations and used base macro.
+    # Hence, empty.

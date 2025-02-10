@@ -12,6 +12,7 @@ from dbt.adapters.base.connections import AdapterResponse
 from dbt.adapters.base.meta import available
 from dbt.adapters.base.impl import ConstraintSupport, _utc
 from dbt.adapters.base.relation import BaseRelation
+from dbt.adapters.exceptions.database import UnexpectedDbReferenceError
 from dbt.adapters.netezza import NetezzaConnectionManager
 from dbt.adapters.netezza.column import NetezzaColumn
 from dbt.adapters.netezza.et_options_parser import get_et_options_as_string
@@ -152,7 +153,6 @@ class NetezzaAdapter(SQLAdapter):
     # "function sequence error"
     # Source: https://github.com/dbt-labs/dbt-core/blob/c270a77552ae9fc66fdfab359d65a8db1307c3f3/core/dbt/adapters/sql/impl.py#L223-L243
     def run_sql_for_tests(self, sql, fetch, conn):
-        print(f"run_sql_for_tests {sql} {fetch} {conn}")
         cursor = conn.handle.cursor()
         try:
             cursor.execute(sql)
@@ -177,6 +177,23 @@ class NetezzaAdapter(SQLAdapter):
     @available
     def get_seed_file_path(self, model) -> str:
         return os.path.join(model["root_path"], model["original_file_path"])
+    
+    @available
+    def verify_database(self, database):
+        if database.startswith('"'):
+            database = database.strip('"')
+        expected = self.config.credentials.database
+        if database.lower() != expected.lower():
+            raise UnexpectedDbReferenceError(self.type(), database, expected)
+        # return an empty string on success so macros can call this
+        return ""
+    
+    @available
+    def rename_relation(self, from_relation, to_relation):
+        self.cache_renamed(from_relation, to_relation)
+
+        kwargs = {"from_relation": from_relation, "to_relation": to_relation}
+        self.execute_macro('rename_relation', kwargs=kwargs)
 
     @available
     def get_et_options(self, model) -> str:

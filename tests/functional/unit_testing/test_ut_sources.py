@@ -1,6 +1,8 @@
 from dbt.contracts.results import RunStatus, TestStatus
-from dbt.tests.util import run_dbt, write_file
+from dbt.tests.util import write_file
 import pytest
+
+from tests.functional.utils import run_dbt
 
 
 raw_customers_csv = """id,first_name,last_name,email
@@ -21,7 +23,7 @@ sources:
   - name: seed_sources
     schema: "{{ target.schema }}"
     tables:
-      - name: raw_customers
+      - name: RAW_CUSTOMERS
         columns:
           - name: id
             data_tests:
@@ -35,7 +37,7 @@ unit_tests:
   - name: test_customers
     model: customers
     given:
-      - input: source('seed_sources', 'raw_customers')
+      - input: source('seed_sources', 'RAW_CUSTOMERS')
         rows:
           - {id: 1, first_name: Emily}
     expect:
@@ -44,14 +46,14 @@ unit_tests:
 """
 
 customers_sql = """
-select * from {{ source('seed_sources', 'raw_customers') }}
+select * from {{ source('seed_sources', 'RAW_CUSTOMERS') }}
 """
 
 failing_test_schema_yml = """
   - name: fail_test_customers
     model: customers
     given:
-      - input: source('seed_sources', 'raw_customers')
+      - input: source('seed_sources', 'RAW_CUSTOMERS')
         rows:
           - {id: 1, first_name: Emily}
     expect:

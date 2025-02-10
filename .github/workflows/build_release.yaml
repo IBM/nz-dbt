@@ -37,4 +37,5 @@ jobs:
         run: |
           pip install twine  # Install twine to upload packages
           echo "Uploading distributions to PyPI..."
-          twine upload src/python/dist/*  # Upload the distribution files
+          echo "The username for pypi is : $PYPI_USERNAME"
+          # twine upload src/python/dist/*  # Upload the distribution files

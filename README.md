@@ -1,6 +1,6 @@
 # nz-dbt
 
-The `nz-dbt` package contains all of the code required to make `dbt` operate on a Netezza database. For more information on using dbt, consult [their docs](https://docs.getdbt.com/docs).
+The `dbt-ibm-netezza` package contains all of the code required to make `dbt` operate on a Netezza database. For more information on using dbt, consult [their docs](https://docs.getdbt.com/docs).
 
 
 ### Performance Optimizations
@@ -52,7 +52,7 @@ To install all the dependencies for the tool, follow these steps:
     cd nz-dbt
     ```
 
-2. Install `nz-dbt` using the command `pip install .`
+2. Install `dbt-ibm-netezza` using the command `pip install .`
 
 Initialize a new dbt project using command `dbt init` and provide all the informantion prompted like project_name, hostname, database, etc. The details you put are case-sensitive.
 

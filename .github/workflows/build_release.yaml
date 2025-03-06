@@ -43,7 +43,7 @@ jobs:
         runs-on: ubuntu-latest
         environment:
           name: pypi
-          url: https://pypi.org/dbt-ibm-netezza
+          url: https://pypi.org/p/dbt-ibm-netezza
         permissions:
           id-token: write
 

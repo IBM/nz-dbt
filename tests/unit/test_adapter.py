@@ -121,7 +121,7 @@ class TestNetezzaAdapter(TestCase):
         )
 
     @pytest.mark.skip(
-        """Skipping. since nz-dbt doesn't support connection timeout yet."""
+        """Skipping. since dbt-ibm-netezza doesn't support connection timeout yet."""
     )
     @mock.patch("dbt.adapters.netezza.connections.nzpy")
     def test_changed_connect_timeout(self, nzpy):
@@ -156,7 +156,7 @@ class TestNetezzaAdapter(TestCase):
         )
 
     @pytest.mark.skip(
-        """Skipping. since nz-dbt doesn't support keepalives_idle yet."""
+        """Skipping. since dbt-ibm-netezza doesn't support keepalives_idle yet."""
     )
     @mock.patch("dbt.adapters.netezza.connections.nzpy")
     def test_changed_keepalive(self, nzpy):
@@ -192,7 +192,7 @@ class TestNetezzaAdapter(TestCase):
         )
 
     @pytest.mark.skip(
-        """Skipping. since nz-dbt doesn't support application rename yet."""
+        """Skipping. since dbt-ibm-netezza doesn't support application rename yet."""
     )
     @mock.patch("dbt.adapters.netezza.connections.nzpy")
     def test_changed_application_name(self, nzpy):
@@ -212,7 +212,7 @@ class TestNetezzaAdapter(TestCase):
         )
 
     @pytest.mark.skip(
-        """Skipping. since nz-dbt doesn't support role in connections yet."""
+        """Skipping. since dbt-ibm-netezza doesn't support role in connections yet."""
     )
     @mock.patch("dbt.adapters.netezza.connections.nzpy")
     def test_role(self, nzpy):
@@ -245,7 +245,7 @@ class TestNetezzaAdapter(TestCase):
         )
 
     @pytest.mark.skip(
-        """Skipping. since nz-dbt doesn't support sslmode yet."""
+        """Skipping. since dbt-ibm-netezza doesn't support sslmode yet."""
     )
     @mock.patch("dbt.adapters.netezza.connections.nzpy")
     def test_sslmode(self, nzpy):
@@ -266,7 +266,7 @@ class TestNetezzaAdapter(TestCase):
         )
 
     @pytest.mark.skip(
-        """Skipping. since nz-dbt doesn't support sslmode yet."""
+        """Skipping. since dbt-ibm-netezza doesn't support sslmode yet."""
     )
     @mock.patch("dbt.adapters.netezza.connections.nzpy")
     def test_ssl_parameters(self, nzpy):
@@ -293,7 +293,7 @@ class TestNetezzaAdapter(TestCase):
         )
 
     @pytest.mark.skip(
-        """Skipping. since nz-dbt doesn't support search_path yet."""
+        """Skipping. since dbt-ibm-netezza doesn't support search_path yet."""
     )
     @mock.patch("dbt.adapters.netezza.connections.nzpy")
     def test_schema_with_space(self, nzpy):
@@ -314,7 +314,7 @@ class TestNetezzaAdapter(TestCase):
         )
 
     @pytest.mark.skip(
-        """Skipping. since nz-dbt doesn't support keepalives_idle yet."""
+        """Skipping. since dbt-ibm-netezza doesn't support keepalives_idle yet."""
     )
     @mock.patch("dbt.adapters.netezza.connections.nzpy")
     def test_set_zero_keepalive(self, nzpy):

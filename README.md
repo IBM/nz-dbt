@@ -96,7 +96,7 @@ Create the tables into your db using the info in the `datainsertion.sql` file.
 
 We can load the data into our tables using the `dbt seed command` , it would insert the data from all the seed files into tables created with the name of the seed files.
 
-Before using the `dbt seed` command, ensure that you have provided an `et_options.yml` file in your dbt project folder. This file is crucial for configuring the parameters for inserting data from an external file into your table.
+The `et_options.yml` file created after the initialization of a dbt project, is crucial for configuring the parameters for inserting data from an external file into your table.
 
 > **Note:** 
 > 

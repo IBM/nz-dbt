@@ -1,8 +1,9 @@
-from contextlib import contextmanager
-from io import StringIO
-from os import chdir
+import yaml
 import os
+from os import chdir
 from os.path import normcase, normpath
+from io import StringIO
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Callable, Dict, List, Optional
 
@@ -13,9 +14,8 @@ from dbt_common.events.functions import (
     stop_capture_stdout_logs,
 )
 from dbt_common.events.base_types import EventMsg
-import yaml
 
-from dbt.adapters.netezza.et_options_parser import ETOptions, etoptions_representer
+from dbt.adapters.netezza.et_options_parser import create_et_options
 
 
 @contextmanager
@@ -41,13 +41,6 @@ def normalize(path):
     return normcase(normpath(path))
 
 
-def create_et_options(project_path):
-    yaml.add_representer(ETOptions, etoptions_representer)
-    et_options = ETOptions(options={'SkipRows': '1', 'Delimiter': "','", 'DateDelim': "'-'", 'MaxErrors': '0'})
-    with open(f"{project_path}/et_options.yml", "w") as file:
-        yaml.dump([et_options], file, default_flow_style=False)
-
-
 def update_seed_file_names(seeds_path: str):
     if os.path.exists(seeds_path):
         for i in os.listdir(seeds_path):
@@ -59,8 +52,8 @@ def update_seed_file_names(seeds_path: str):
 
 
 def run_dbt(
-    args: Optional[List[str]] = None, 
-    expect_pass: bool = True, 
+    args: Optional[List[str]] = None,
+    expect_pass: bool = True,
     callbacks: Optional[List[Callable[[EventMsg], None]]] = None
 ):
     print("run_dbt invoked for functional tests...")
@@ -70,7 +63,7 @@ def run_dbt(
 
     from dbt.flags import get_flags
     flags = get_flags()
-    
+
     project_dir = getattr(flags, "PROJECT_DIR", None)
     profiles_dir = getattr(flags, "PROFILES_DIR", None)
 

@@ -10,8 +10,8 @@ from dbt_common.exceptions import DbtRuntimeError, DbtDatabaseError
 from dbt.adapters.contracts.connection import Credentials
 from dbt.adapters.sql import SQLConnectionManager as connection_cls
 from dbt.adapters.events.logging import AdapterLogger
-from dbt_common.events.functions import fire_event
-from dbt.adapters.events.types import ConnectionUsed, SQLQuery, SQLQueryStatus
+from dbt_common.events.functions import fire_event, warn_or_error
+from dbt.adapters.events.types import ConnectionUsed, SQLQuery, SQLQueryStatus, TypeCodeNotFound
 from dbt.adapters.contracts.connection import Connection, AdapterResponse
 from dbt_common.helper_types import Port
 import nzpy
@@ -77,7 +77,7 @@ class NetezzaConnectionManager(connection_cls):
         except nzpy.core.ProgrammingError as e:
             logger.error("NZ backend responded with: {}", str(e))
             raise DbtRuntimeError(str(e)) from e
-        
+
         except nzpy.DatabaseError as e:
             logger.debug("Netezza error: {}", str(e))
             try:
@@ -87,7 +87,7 @@ class NetezzaConnectionManager(connection_cls):
 
             _, error_message = e.args
             raise DbtDatabaseError(error_message) from e
-        
+
 
         except Exception as e:
             logger.debug("Error running SQL: {}", sql)
@@ -112,7 +112,7 @@ class NetezzaConnectionManager(connection_cls):
             return connection
 
         credentials = cls.get_credentials(connection.credentials)
-        
+
         connection_args = {}
         if credentials.dsn:
             connection_args = {"DSN": credentials.dsn}
@@ -154,9 +154,9 @@ class NetezzaConnectionManager(connection_cls):
     def get_credentials(cls, credentials):
         return credentials
 
-    
+
     @classmethod
-    def get_response(cls, cursor) -> AdapterResponse: 
+    def get_response(cls, cursor) -> AdapterResponse:
         """
         Gets a cursor object and returns adapter-specific information
         about the last executed command generally a AdapterResponse object
@@ -218,8 +218,11 @@ class NetezzaConnectionManager(connection_cls):
             "bool": "BOOLEAN",
             "float": "FLOAT",
         }
-        assert inspect.isclass(type_code)
-        return name_map[type_code.__name__]
+        if type_code in name_map:
+            return name_map[type_code].name
+        else:
+            warn_or_error(TypeCodeNotFound(type_code=type_code))
+            return f"unknown type_code {type_code}"
 
     # Override to support multiple queries
     # Source: https://github.com/dbt-msft/dbt-sqlserver/blob/master/dbt/adapters/sqlserver/sql_server_connection_manager.py

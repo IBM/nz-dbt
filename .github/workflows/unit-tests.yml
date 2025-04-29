@@ -9,7 +9,6 @@ on:
 
 permissions: read-all
 
-# will cancel previous workflows triggered by the same event and for the same ref for PRs or same SHA otherwise
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ contains(github.event_name, 'pull_request') && github.event.pull_request.head.ref || github.sha }}
   cancel-in-progress: true
@@ -30,11 +29,17 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup `hatch`
-        uses: dbt-labs/dbt-adapters/.github/actions/setup-hatch@main
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Run unit tests
-        run: hatch run unit-tests
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt  # Make sure pytest and dependencies are in this file
+
+      - name: Run unit tests with pytest
+        run: |
+          pytest tests/unit  # Adjust this if your tests are in a different folder
         shell: bash

@@ -39,18 +39,18 @@ class TestNetezzaAdapterConversions(AdapterConversions):
             ["", "a3", "stringval3"],
         ]
         agate_table = self._make_table_of(rows, agate.Text)
-        expected = ["text", "text", "text"]
+        expected = ["varchar(64)", "varchar(2)", "varchar(22)"]
         for col_idx, expect in enumerate(expected):
             assert NetezzaAdapter.convert_text_type(agate_table, col_idx) == expect
 
     def test_convert_number_type(self):
         rows = [
-            ["", "23.98", "-1"],
-            ["", "12.78", "-2"],
-            ["", "79.41", "-3"],
+            ["23.98", "-1"],
+            ["12.78", "-2"],
+            ["79.41", "-3"],
         ]
         agate_table = self._make_table_of(rows, agate.Number)
-        expected = ["integer", "float8", "integer"]
+        expected = ["float8", "integer"]
         for col_idx, expect in enumerate(expected):
             assert NetezzaAdapter.convert_number_type(agate_table, col_idx) == expect
 
@@ -75,9 +75,9 @@ class TestNetezzaAdapterConversions(AdapterConversions):
             rows, [agate.DateTime, agate_helper.ISODateTime, agate.DateTime]
         )
         expected = [
-            "timestamp without time zone",
-            "timestamp without time zone",
-            "timestamp without time zone",
+            "timestamp",
+            "timestamp",
+            "timestamp",
         ]
         for col_idx, expect in enumerate(expected):
             assert NetezzaAdapter.convert_datetime_type(agate_table, col_idx) == expect

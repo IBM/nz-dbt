@@ -1,5 +1,6 @@
 from dbt.exceptions import ParsingError, YamlParseDictError, DuplicateResourceNameError
-from dbt.tests.util import rm_file, run_dbt, write_file
+from dbt.tests.util import rm_file, write_file
+from tests.functional.utils import run_dbt
 import pytest
 
 from tests.functional.unit_testing.fixtures import (

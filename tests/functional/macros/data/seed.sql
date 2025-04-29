@@ -1,11 +1,11 @@
 create table {schema}.expected_dep_macro (
-	foo TEXT,
-	bar TEXT
+	foo VARCHAR(50),
+	bar VARCHAR(50)
 );
 
 create table {schema}.expected_local_macro (
-	foo2 TEXT,
-	bar2 TEXT
+	foo2 VARCHAR(50),
+	bar2 VARCHAR(50)
 );
 
 create table {schema}.seed (

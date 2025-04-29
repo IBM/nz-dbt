@@ -1,12 +1,15 @@
 from copy import deepcopy
 
+import pytest
 from dbt.adapters.contracts.relation import RelationType
 from dbt.adapters.relation_configs.config_change import RelationConfigChangeAction
 
-from dbt.adapters.postgres.relation import PostgresRelation
-from dbt.adapters.postgres.relation_configs import PostgresIndexConfig
+from dbt.adapters.netezza.relation import NetezzaRelation
 
 
+@pytest.mark.skip(
+    """Skipping. NPS doesn't support multiple types of Indexes as Postgres."""
+)
 def test_index_config_changes():
     index_0_old = {
         "name": "my_index_0",
@@ -43,7 +46,7 @@ def test_index_config_changes():
         PostgresIndexConfig.from_dict(index) for index in [index_0_new, index_2_new, index_3_new]
     )
 
-    relation = PostgresRelation.create(
+    relation = NetezzaRelation.create(
         database="my_database",
         schema="my_schema",
         identifier="my_materialized_view",

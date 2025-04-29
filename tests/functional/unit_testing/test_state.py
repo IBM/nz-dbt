@@ -2,7 +2,8 @@ from copy import deepcopy
 import os
 import shutil
 
-from dbt.tests.util import run_dbt, write_config_file, write_file
+from dbt.tests.util import write_config_file, write_file
+from tests.functional.utils import run_dbt
 import pytest
 
 from tests.functional.unit_testing.fixtures import (

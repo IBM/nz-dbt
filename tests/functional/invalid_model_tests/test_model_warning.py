@@ -1,4 +1,4 @@
-from dbt.tests.util import run_dbt
+from tests.functional.utils import run_dbt
 import pytest
 
 

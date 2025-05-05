@@ -29,7 +29,7 @@ class NetezzaConfig(AdapterConfig):
     dist: Optional[str] = None
 
 
-FRESHNESS_MACRO_NAME = "collect_freshness" # Macro used to analyze the freshness of the data imports in tables
+FRESHNESS_MACRO_NAME = "collect_freshness"  # Macro used to analyze the freshness of the data imports in tables
 class NetezzaAdapter(SQLAdapter):
     INT_MIN32 = -2147483648
     INT_MAX32 = 2147483648
@@ -177,7 +177,7 @@ class NetezzaAdapter(SQLAdapter):
     @available
     def get_seed_file_path(self, model) -> str:
         return os.path.join(model["root_path"], model["original_file_path"])
-    
+
     @available
     def verify_database(self, database):
         if database.startswith('"'):
@@ -187,7 +187,7 @@ class NetezzaAdapter(SQLAdapter):
             raise UnexpectedDbReferenceError(self.type(), database, expected)
         # return an empty string on success so macros can call this
         return ""
-    
+
     @available
     def rename_relation(self, from_relation, to_relation):
         self.cache_renamed(from_relation, to_relation)

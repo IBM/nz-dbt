@@ -2,7 +2,6 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Optional, Tuple, Any
 import time
-import inspect
 
 import agate
 from dbt_common.clients import agate_helper

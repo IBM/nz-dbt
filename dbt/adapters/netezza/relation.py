@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import Optional,Type, TypeVar
+from typing import Optional, Type, TypeVar
 from dbt.adapters.base.relation import BaseRelation, Policy, Path, InformationSchema
 from dbt.adapters.contracts.relation import ComponentName, RelationType
 
@@ -7,15 +7,15 @@ from dbt.adapters.contracts.relation import ComponentName, RelationType
 class NetezzaPath(Path):
     def get_part(self, key: ComponentName) -> Optional[str]:
         if key == ComponentName.Database:
-            if self.database == None:
+            if self.database is None:
                 return self.database
-            return self.database.replace('"',"")
+            return self.database.replace('"', "")
         elif key == ComponentName.Schema:
-            if self.schema == None:
+            if self.schema is None:
                 return None
             return self.schema
         elif key == ComponentName.Identifier:
-            if self.identifier == None:
+            if self.identifier is None:
                 return None
             return self.identifier
         else:
@@ -41,13 +41,13 @@ class NetezzaRelation(BaseRelation):
         if self.quote_policy.get_part(field) is False:
             return self.path.get_lowered_part(field) == value.lower()
         else:
-            return self.path.get_part(field) == value.replace('"',"")
+            return self.path.get_part(field) == value.replace('"', "")
 
     @staticmethod
     def add_ephemeral_prefix(name: str):
         # Netezza reserves '_' name prefix for system catalogs
         return f"dbt__cte__{name}"
-    
+
     def information_schema(self, view_name=None) -> "NetezzaInformationSchema":
         # some of our data comes from jinja, where things can be `Undefined`.
         if not isinstance(view_name, str):
@@ -64,10 +64,11 @@ class NetezzaInformationSchema(InformationSchema):
     @classmethod
     def get_path(cls, relation: NetezzaRelation, information_schema_view: Optional[str]) -> NetezzaPath:
         return Path(
-            database=relation.database.replace('"',""),
+            database=relation.database.replace('"', ""),
             schema=relation.schema,
             identifier="INFORMATION_SCHEMA",
         )
+
     @classmethod
     def from_relation(
         cls: Type[Info],

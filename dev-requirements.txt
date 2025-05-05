@@ -11,7 +11,7 @@ click~=8.1
 ddtrace~=2.1
 flake8~=6.1
 flaky~=3.7
-freezegun~=1.2
+freezegun~=1.5
 ipdb~=0.13.13
 mypy==1.6.0  # patch updates have historically introduced breaking changes
 pip-tools~=7.3

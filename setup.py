@@ -70,7 +70,7 @@ setup(
     url="https://github.com/IBM/nz-dbt",
     packages=find_namespace_packages(include=["dbt", "dbt.*"]),
     include_package_data=True,
-    install_requires=["dbt-core==1.9.2", "nzpy==1.15"],
+    install_requires=["dbt-core==1.9.2", "nzpy==1.17.1"],
     zip_safe=False,
     classifiers=[
         "Operating System :: Microsoft :: Windows",

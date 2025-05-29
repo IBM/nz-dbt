@@ -23,6 +23,7 @@ from dbt.contracts.graph.manifest import Manifest
 from dbt_common.exceptions import CompilationError, DbtDatabaseError, MacroResultError
 from dbt_common.utils import filter_null_values, AttrDict
 from dbt.contracts.graph.nodes import ConstraintType
+from dbt.adapters.contracts.macros import MacroResolverProtocol
 
 @dataclass
 class NetezzaConfig(AdapterConfig):
@@ -245,7 +246,7 @@ class NetezzaAdapter(SQLAdapter):
         source: BaseRelation,
         loaded_at_field: str,
         filter: Optional[str],
-        manifest: Optional[Manifest] = None,
+        macro_resolver: Optional[MacroResolverProtocol] = None,
     ) -> Tuple[Optional[AdapterResponse], Dict[str, Any]]:
         """Calculate the freshness of sources in dbt, and return it"""
         kwargs: Dict[str, Any] = {
@@ -260,7 +261,7 @@ class NetezzaAdapter(SQLAdapter):
             AttrDict,  # current: contains AdapterResponse + agate.Table
             agate.Table,  # previous: just table
         ]
-        result = self.execute_macro(FRESHNESS_MACRO_NAME, kwargs=kwargs, manifest=manifest)
+        result = self.execute_macro(FRESHNESS_MACRO_NAME, kwargs=kwargs, macro_resolver=macro_resolver)
         if isinstance(result, agate.Table):
             deprecations.warn("collect-freshness-return-signature")
             adapter_response = None

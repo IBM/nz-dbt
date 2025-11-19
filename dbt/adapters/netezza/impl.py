@@ -178,6 +178,23 @@ class NetezzaAdapter(SQLAdapter):
     @available
     def get_seed_file_path(self, model) -> str:
         return os.path.join(model["root_path"], model["original_file_path"])
+    
+    @available
+    def verify_database(self, database):
+        if database.startswith('"'):
+            database = database.strip('"')
+        expected = self.config.credentials.database
+        if database.lower() != expected.lower():
+            raise UnexpectedDbReferenceError(self.type(), database, expected)
+        # return an empty string on success so macros can call this
+        return ""
+    
+    @available
+    def rename_relation(self, from_relation, to_relation):
+        self.cache_renamed(from_relation, to_relation)
+
+        kwargs = {"from_relation": from_relation, "to_relation": to_relation}
+        self.execute_macro('rename_relation', kwargs=kwargs)
 
     @available
     def verify_database(self, database):

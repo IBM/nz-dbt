@@ -55,7 +55,7 @@ def _get_dbt_core_version():
 
 
 package_name = "dbt-ibm-netezza"
-package_version = "1.0.5"
+package_version = "1.0.4"
 dbt_core_version = _get_dbt_core_version()
 description = """The Netezza adapter plugin for dbt"""
 
@@ -70,7 +70,7 @@ setup(
     url="https://github.com/IBM/nz-dbt",
     packages=find_namespace_packages(include=["dbt", "dbt.*"]),
     include_package_data=True,
-    install_requires=["dbt-core==1.9.2", "nzpy==1.17.1"],
+    install_requires=["dbt-core==1.9.2", "nzpy==1.15"],
     zip_safe=False,
     classifiers=[
         "Operating System :: Microsoft :: Windows",

@@ -18,7 +18,7 @@ def et_options_constructor(loader, node):
 
 
 def etoptions_representer(dumper, data: ETOptions):
-    return dumper.represent_mapping('!ETOptions', {k: v for k, v in data.options.items()})
+    return dumper.represent_mapping('!ETOptions', { k: v for k,v in data.options.items()})
 
 
 def parse_et_options_yaml(file_path):
@@ -34,7 +34,7 @@ def get_et_options_as_string(user_file_path: str):
     if not et_options_data:
         return ""
     to_be_returned = ""
-    for k, v in et_options_data[0].options.items():
+    for k,v in et_options_data[0].options.items():
         to_be_returned += f"{k} {v}\n"
     return to_be_returned
 

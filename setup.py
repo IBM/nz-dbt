@@ -3,10 +3,10 @@ import os
 import sys
 import re
 
-# require python 3.8 or newer
-if sys.version_info < (3, 8):
+# require python 3.10 or newer
+if sys.version_info < (3, 10):
     print("Error: dbt does not support this version of Python.")
-    print("Please upgrade to Python 3.8 or higher.")
+    print("Please upgrade to Python 3.10 or higher.")
     sys.exit(1)
 
 
@@ -55,7 +55,7 @@ def _get_dbt_core_version():
 
 
 package_name = "dbt-ibm-netezza"
-package_version = "1.0.7"
+package_version = "1.1.0"
 dbt_core_version = _get_dbt_core_version()
 description = """The Netezza adapter plugin for dbt"""
 
@@ -70,14 +70,16 @@ setup(
     url="https://github.com/IBM/nz-dbt",
     packages=find_namespace_packages(include=["dbt", "dbt.*"]),
     include_package_data=True,
-    install_requires=["dbt-core==1.9.2", "nzpy==1.15"],
+    install_requires=["dbt-core~=1.11.0", "nzpy>=1.15"],
     zip_safe=False,
     classifiers=[
         "Operating System :: Microsoft :: Windows",
         "Operating System :: MacOS :: MacOS X",
         "Operating System :: POSIX :: Linux",
-        "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
     ],
-    python_requires=">=3.9",
+    python_requires=">=3.10",
 )

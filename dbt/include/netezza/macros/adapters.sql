@@ -71,7 +71,7 @@
       schema as schema,
       'table' as type
     from {{ schema_relation.database }}.._v_table
-    where schema ilike '{{ schema }}'
+    where schema ilike '{{ schema_relation.schema }}'
     union all
     select
       '{{ schema_relation.database }}' as database,
@@ -79,16 +79,39 @@
       schema as schema,
       'view' as type
     from {{ schema_relation.database }}.._v_view
-    where schema ilike '{{ schema }}'
+    where schema ilike '{{ schema_relation.schema }}'
   {% endcall %}
   {{ return(load_result('list_relations_without_caching').table) }}
 {% endmacro %}
 
-{% macro netezza__drop_schema(relation) -%}
-  {%- call statement('drop_schema') -%}
-    {{ exceptions.raise_compiler_error("dbt-ibm-netezza does not support drop_schema") }}
-  {% endcall %}
+{% macro netezza__get_empty_subquery_sql(select_sql, select_sql_header=none) %}
+    {%- if select_sql_header is not none -%}
+    {{ select_sql_header }}
+    {%- endif -%}
+    select * from (
+        {{ select_sql }}
+    ) __dbt_sbq
+    where false
+    limit 0
 {% endmacro %}
+
+{% macro netezza__drop_schema(relation) -%}
+  {# Netezza does not support DROP SCHEMA IF EXISTS.
+     Check _v_schema first to avoid errors on non-existing schemas. #}
+  {%- set schema_check %}
+    select count(1) as cnt
+    from {{ relation.database }}.._v_schema
+    where upper(schema) = upper('{{ relation.without_identifier().schema }}')
+  {%- endset -%}
+
+  {%- set schema_exists = (run_query(schema_check).columns[0].values() | first) | int -%}
+
+  {%- if schema_exists > 0 -%}
+    {%- call statement('drop_schema') -%}
+      drop schema {{ relation.without_identifier() }} cascade
+    {%- endcall -%}
+  {%- endif -%}
+{%- endmacro %}
 
 {% macro netezza__drop_relation(relation) -%}
   {% call statement('drop_relation', auto_begin=False) -%}
@@ -101,8 +124,22 @@
 {% endmacro %}
 
 {% macro netezza__rename_relation(from_relation, to_relation) -%}
+  {#-- Look up the actual object type from the database because the relation
+       cache may have an incorrect type (e.g. incremental materialization always
+       sets target_relation.type='table' even when the existing object is a view). --#}
+  {% set objtype_query %}
+    select objtype from {{ from_relation.database }}.._v_objects
+    where objname = upper('{{ from_relation.identifier }}')
+    and schema = upper('{{ from_relation.schema }}')
+  {% endset %}
+  {% set results = run_query(objtype_query) %}
+  {% if results and results.rows | length > 0 %}
+    {% set actual_type = results.rows[0][0] | lower %}
+  {% else %}
+    {% set actual_type = from_relation.type %}
+  {% endif %}
   {% call statement('rename_relation') -%}
-    alter {{ from_relation.type }} {{ from_relation }} rename to {{ to_relation }}
+    alter {{ actual_type }} {{ from_relation }} rename to {{ to_relation }}
   {%- endcall %}
 {% endmacro %}
 
@@ -145,3 +182,12 @@
   {% endif %}
   '{{ comment | replace("'", "''")}}'
 {%- endmacro %}
+
+{% macro netezza__can_clone_table() %}
+  {{ return(True) }}
+{% endmacro %}
+
+{% macro netezza__create_or_replace_clone(this_relation, defer_relation) %}
+  {% do adapter.drop_relation(this_relation) %}
+  create table {{ this_relation }} as select * from {{ defer_relation }}
+{% endmacro %}

@@ -28,7 +28,7 @@
             {%- if not loop.last %},{% endif -%}
             {% endfor %}
         from
-            qmr_dev.admin._v_sys_user_priv
+            {{ relation.database }}.._v_sys_user_priv
         where
             lower(schema) = '{{ relation.schema|lower }}'
             and lower(objectname) = '{{ relation.identifier|lower }}'

@@ -34,6 +34,7 @@ class NetezzaQuotePolicy(Policy):
 class NetezzaRelation(BaseRelation):
     path: NetezzaPath
     quote_policy: Policy = field(default_factory=lambda: NetezzaQuotePolicy())
+    require_alias: bool = True
 
     def _is_exactish_match(self, field: ComponentName, value: str) -> bool:
         # Remove requirement for dbt_created due to dbt bug with cache preservation

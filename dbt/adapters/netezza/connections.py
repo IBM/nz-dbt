@@ -120,7 +120,8 @@ class NetezzaConnectionManager(connection_cls):
                 "host": credentials.host,
                 "port": credentials.port,
                 "database": credentials.database,
-                "logOptions": nzpy.LogOptions.Disabled
+                "logOptions": nzpy.LogOptions.Disabled,
+                "logLevel": 0,
             }
 
         def connect():
@@ -226,16 +227,28 @@ class NetezzaConnectionManager(connection_cls):
 
     @classmethod
     def data_type_code_to_name(cls, type_code) -> str:
+        # nzpy sends numeric OIDs from Netezza's type system
         name_map = {
-            "int": "INTEGER",
-            "str": "STRING",
-            "date": "DATE",
-            "datetime": "DATETIME",
-            "bool": "BOOLEAN",
-            "float": "FLOAT",
+            16: "BOOLEAN",
+            17: "BYTEA",
+            20: "BIGINT",
+            21: "SMALLINT",
+            23: "INTEGER",
+            25: "TEXT",
+            700: "REAL",
+            701: "DOUBLE PRECISION",
+            790: "NUMERIC",
+            1042: "CHARACTER",
+            1043: "CHARACTER VARYING",
+            1082: "DATE",
+            1083: "TIME",
+            1114: "TIMESTAMP",
+            1184: "TIMESTAMP",
+            1186: "INTERVAL",
+            1700: "NUMERIC",
         }
         if type_code in name_map:
-            return name_map[type_code].name
+            return name_map[type_code]
         else:
             warn_or_error(TypeCodeNotFound(type_code=type_code))
             return f"unknown type_code {type_code}"

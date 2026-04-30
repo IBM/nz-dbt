@@ -92,7 +92,12 @@
 {% endmacro %}
 
 {% macro netezza__get_incremental_merge_sql(arg_dict) %}
-  {# Netezza requires GROOM TABLE VERSIONS after DDL changes before MERGE can run #}
-  {% do run_query("GROOM TABLE " ~ arg_dict["target_relation"] ~ " VERSIONS") %}
+  {# Netezza requires GROOM TABLE VERSIONS after DDL (e.g. the rename done by
+     full-refresh / CTAS swap) before MERGE can run, otherwise it errors with
+     "Relation 'X' has been altered. Please run 'GROOM TABLE X VERSIONS;' first."
+     However, on tables with no versioned rows GROOM itself errors with
+     "Table 'X' has no versions. GROOM VERSIONS is not applicable." so we use
+     the safe adapter helper that swallows only that specific error. #}
+  {% do adapter.groom_table_versions(arg_dict["target_relation"]) %}
   {% do return(get_merge_sql(arg_dict["target_relation"], arg_dict["temp_relation"], arg_dict["unique_key"], arg_dict["dest_columns"], arg_dict["incremental_predicates"])) %}
 {% endmacro %}

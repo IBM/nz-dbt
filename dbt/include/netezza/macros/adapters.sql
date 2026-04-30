@@ -176,6 +176,17 @@
   {% endfor %}
 {% endmacro %}
 
+{% macro netezza__alter_relation_add_remove_columns(relation, add_columns, remove_columns) %}
+  {# Run the default ALTER TABLE ADD/DROP COLUMN statements first. #}
+  {% do default__alter_relation_add_remove_columns(relation, add_columns, remove_columns) %}
+  {# Netezza requires GROOM TABLE VERSIONS after DDL produces versioned rows so
+     that subsequent MERGE statements can run. Use the safe adapter helper so
+     we don't fail when no versioned rows exist. #}
+  {% if (add_columns and add_columns | length > 0) or (remove_columns and remove_columns | length > 0) %}
+    {% do adapter.groom_table_versions(relation) %}
+  {% endif %}
+{% endmacro %}
+
 {% macro netezza_escape_comment(comment) -%}
   {% if comment is not string %}
     {% do exceptions.raise_compiler_error('cannot escape a non-string: ' ~ comment) %}

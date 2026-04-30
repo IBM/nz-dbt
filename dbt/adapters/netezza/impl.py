@@ -218,6 +218,24 @@ class NetezzaAdapter(SQLAdapter):
     def get_et_options(self, model) -> str:
         return get_et_options_as_string(os.path.join(model["root_path"], "et_options.yml"))
 
+    @available
+    def groom_table_versions(self, relation) -> str:
+        """Attempt GROOM TABLE <relation> VERSIONS, tolerating Netezza's
+        "no versions / not applicable" error which is raised when the table
+        has no versioned rows yet (e.g. right after a full-refresh CTAS or
+        when prior incremental runs only INSERTed). Any other error is
+        re-raised.
+        """
+        sql = f"GROOM TABLE {relation} VERSIONS"
+        try:
+            self.execute(sql, auto_begin=False, fetch=False)
+        except DbtDatabaseError as exc:
+            message = str(exc).lower()
+            if "not applicable" in message or "has no versions" in message:
+                return ""
+            raise
+        return ""
+
     # Override to change the default value of quote_columns to False
     # Source: https://github.com/dbt-labs/dbt-core/blob/7f8d9a7af976f640e376900773a0d793acf3a3ce/core/dbt/adapters/base/impl.py#L812-L828
     @available

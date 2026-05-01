@@ -131,6 +131,15 @@ class NetezzaConnectionManager(connection_cls):
                 **connection_args,
             )
             handle.autocommit = True
+            # Make MERGE statements report a real `rows_affected` value
+            # (see _install_merge_rowcount_handler).
+            try:
+                cls._install_merge_rowcount_handler(handle)
+            except Exception as e:  # pragma: no cover - defensive
+                logger.debug(
+                    "Could not install MERGE rowcount handler on nzpy connection: {}",
+                    str(e),
+                )
             return handle
 
         retryable_exceptions = [
@@ -150,6 +159,39 @@ class NetezzaConnectionManager(connection_cls):
         Gets a connection object and attempts to cancel any ongoing queries.
         """
         connection.handle.close()
+
+    @staticmethod
+    def _install_merge_rowcount_handler(handle):
+        """
+        Make `cursor.rowcount` reflect MERGE statements.
+
+        Netezza's MERGE CommandComplete tag is `MERGE <ins>/<upd>/<del>`.
+        nzpy's default parser does `int(values[-1])` and raises on the
+        slash-delimited token, so we wrap the handler to sum the parts
+        and delegate everything else to the original.
+        """
+        original = handle.handle_COMMAND_COMPLETE
+
+        def handle_COMMAND_COMPLETE(data, cursor):
+            try:
+                values = data[:-1].split(b" ")
+                if values and values[0] == b"MERGE":
+                    last = values[-1]
+                    if b"/" in last:
+                        parts = last.split(b"/")
+                        row_count = sum(int(p) for p in parts if p)
+                    else:
+                        row_count = int(last)
+                    if cursor._row_count == -1:
+                        cursor._row_count = row_count
+                    else:
+                        cursor._row_count += row_count
+                    return
+            except Exception as e:  # pragma: no cover - defensive
+                logger.debug("Failed to parse MERGE CommandComplete tag: {}", str(e))
+            return original(data, cursor)
+
+        handle.handle_COMMAND_COMPLETE = handle_COMMAND_COMPLETE
 
     @classmethod
     def get_credentials(cls, credentials):

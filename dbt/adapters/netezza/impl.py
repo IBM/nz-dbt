@@ -224,17 +224,20 @@ class NetezzaAdapter(SQLAdapter):
         "no versions / not applicable" error which is raised when the table
         has no versioned rows yet (e.g. right after a full-refresh CTAS or
         when prior incremental runs only INSERTed). Any other error is
-        re-raised.
+        re-raised. Executes at the raw cursor level to suppress benign error
+        messages that would otherwise pollute logs.
         """
-        from dbt_common.exceptions import DbtRuntimeError
+        import nzpy
         sql = f"GROOM TABLE {relation} VERSIONS"
-        try:
-            self.execute(sql, auto_begin=False, fetch=False)
-        except (DbtDatabaseError, DbtRuntimeError) as exc:
-            message = str(exc).lower()
-            if "not applicable" in message or "has no versions" in message:
-                return ""
-            raise
+        conn = self.connections.get_thread_connection()
+        with conn.handle.cursor() as cursor:
+            try:
+                cursor.execute(sql)
+            except nzpy.core.ProgrammingError as exc:
+                message = str(exc).lower()
+                if "not applicable" in message or "has no versions" in message:
+                    return ""
+                raise DbtDatabaseError(str(exc)) from exc
         return ""
 
     # Override to change the default value of quote_columns to False

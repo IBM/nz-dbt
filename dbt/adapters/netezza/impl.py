@@ -226,10 +226,11 @@ class NetezzaAdapter(SQLAdapter):
         when prior incremental runs only INSERTed). Any other error is
         re-raised.
         """
+        from dbt_common.exceptions import DbtRuntimeError
         sql = f"GROOM TABLE {relation} VERSIONS"
         try:
             self.execute(sql, auto_begin=False, fetch=False)
-        except DbtDatabaseError as exc:
+        except (DbtDatabaseError, DbtRuntimeError) as exc:
             message = str(exc).lower()
             if "not applicable" in message or "has no versions" in message:
                 return ""

@@ -117,7 +117,8 @@ class TestNetezzaAdapter(TestCase):
             password='password', 
             host='thishostshouldnotexist', 
             port=5480, database='testdbt', 
-            logOptions=mock.ANY
+            logOptions=mock.ANY,
+            logLevel=0
         )
 
     @pytest.mark.skip(
@@ -152,7 +153,8 @@ class TestNetezzaAdapter(TestCase):
             host='thishostshouldnotexist', 
             port=5480, 
             database='testdbt', 
-            logOptions=mock.ANY
+            logOptions=mock.ANY,
+            logLevel=0
         )
 
     @pytest.mark.skip(
@@ -188,7 +190,8 @@ class TestNetezzaAdapter(TestCase):
             host='thishostshouldnotexist', 
             port=5480, 
             database='testdbt', 
-            logOptions=mock.ANY
+            logOptions=mock.ANY,
+            logLevel=0
         )
 
     @pytest.mark.skip(

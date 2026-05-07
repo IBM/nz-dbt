@@ -129,6 +129,7 @@ class NetezzaConnectionManager(connection_cls):
                 password=credentials.password,
                 **connection_args,
             )
+            handle.autocommit = True
             return handle
 
         retryable_exceptions = [
@@ -164,6 +165,23 @@ class NetezzaConnectionManager(connection_cls):
         """
         return AdapterResponse("OK", rows_affected=cursor.rowcount)
 
+    # Netezza doesn't support transactional DDL, so we use autocommit=True
+    # and make transaction methods no-ops (similar to Snowflake adapter)
+    def add_begin_query(self, *args, **kwargs):
+        pass
+
+    def add_commit_query(self, *args, **kwargs):
+        pass
+
+    def begin(self):
+        pass
+
+    def commit(self):
+        pass
+
+    def clear_transaction(self):
+        pass
+
     # Override to prevent error when calling execute without bindings
     def add_query(
         self,
@@ -173,8 +191,7 @@ class NetezzaConnectionManager(connection_cls):
         abridge_sql_log: bool = False,
     ) -> Tuple[Connection, Any]:
         connection = self.get_thread_connection()
-        if auto_begin and connection.transaction_open is False:
-            self.begin()
+
         fire_event(ConnectionUsed(conn_type=self.TYPE, conn_name=connection.name))
 
         with self.exception_handler(sql):

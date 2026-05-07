@@ -1,3 +1,7 @@
+import os
+import platform
+import tempfile
+
 from dbt.tests.fixtures.project import write_project_files
 from dbt.tests.util import get_unique_ids_in_results
 from tests.functional.utils import run_dbt
@@ -14,13 +18,15 @@ seeds:
 
 """
 
-local_dependency__et_options_yml = """
-- !ETOptions
-  DateDelim: '''-'''
-  Delimiter: ''','''
-  MaxErrors: '0'
-  SkipRows: '1'
-"""
+
+def _get_local_dependency_et_options_yml():
+    base = "- !ETOptions\n  DateDelim: '''-'''\n  Delimiter: ''','''\n  MaxErrors: '0'\n  SkipRows: '1'\n"
+    if platform.system() == 'Windows':
+        logdir = os.path.join(tempfile.gettempdir(), 'DBT')
+        os.makedirs(logdir, exist_ok=True)
+        base += f"  LogDir: '''{ logdir }'''\n"
+    return base
+
 
 local_dependency__schema_yml = """
 sources:
@@ -81,7 +87,7 @@ class TestUnitTestingInDependency:
     def setUp(self, project_root):
         local_dependency_files = {
             "dbt_project.yml": local_dependency__dbt_project_yml,
-            "et_options.yml": local_dependency__et_options_yml,
+        "et_options.yml": _get_local_dependency_et_options_yml(),
             "models": {
                 "schema.yml": local_dependency__schema_yml,
                 "dep_model.sql": local_dependency__dep_model_sql,

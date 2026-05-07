@@ -90,28 +90,31 @@ class TestEphemeralModels:
         sql = read_file("target", "compiled", "test", "models", "first_ephemeral_model.sql")
         assert norm_whitespace(sql) == norm_whitespace("select 1 as fun")
         sql = read_file("target", "compiled", "test", "models", "second_ephemeral_model.sql")
-        expected_sql = """with __dbt__cte__first_ephemeral_model as (
+        # Netezza uses dbt__cte__ prefix (not __dbt__cte__) because leading '_' prefixes
+        # are reserved for system catalogs.
+        expected_sql = """with dbt__cte__first_ephemeral_model as (
             select 1 as fun
-            ) select * from __dbt__cte__first_ephemeral_model"""
+            ) select * from dbt__cte__first_ephemeral_model"""
         assert norm_whitespace(sql) == norm_whitespace(expected_sql)
         sql = read_file("target", "compiled", "test", "models", "third_ephemeral_model.sql")
-        expected_sql = """with __dbt__cte__first_ephemeral_model as (
+        expected_sql = """with dbt__cte__first_ephemeral_model as (
             select 1 as fun
-            ),  __dbt__cte__second_ephemeral_model as (
-            select * from __dbt__cte__first_ephemeral_model
-            ) select * from __dbt__cte__second_ephemeral_model
+            ),  dbt__cte__second_ephemeral_model as (
+            select * from dbt__cte__first_ephemeral_model
+            ) select * from dbt__cte__second_ephemeral_model
             union all
             select 2 as fun"""
         assert norm_whitespace(sql) == norm_whitespace(expected_sql)
 
+    @pytest.mark.skip(reason="Netezza does not support recursive CTEs")
     def test_with_recursive_cte(self, project):
         run_dbt(["compile"])
 
         assert get_lines("with_recursive_model") == [
-            "with recursive  __dbt__cte__first_ephemeral_model as (",
+            "with recursive  dbt__cte__first_ephemeral_model as (",
             "select 1 as fun",
             "), t(n) as (",
-            "    select * from __dbt__cte__first_ephemeral_model",
+            "    select * from dbt__cte__first_ephemeral_model",
             "  union all",
             "    select n+1 from t where n < 100",
             ")",

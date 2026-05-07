@@ -13,11 +13,11 @@ incremental_sql = """
   )
 }}
 
-select * from {{ this.schema }}.seed
+select * from {{ adapter.quote(this.schema) }}.{{ adapter.quote('seed') }}
 
 {% if is_incremental() %}
 
-    where id > (select max(id) from {{this}})
+    where {{ adapter.quote('id') }} > (select max({{ adapter.quote('id') }}) from {{this}})
 
 {% endif %}
 """
@@ -29,7 +29,7 @@ materialized_sql = """
   )
 }}
 
-select * from {{ this.schema }}.seed
+select * from {{ adapter.quote(this.schema) }}.{{ adapter.quote('seed') }}
 """
 
 

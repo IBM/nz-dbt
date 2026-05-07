@@ -138,7 +138,6 @@ class TestNetezzaConnection(TestCase):
         self.adapter.truncate_relation(relation)
         self.mock_execute.assert_has_calls(
             [
-                mock.call('BEGIN'),
                 mock.call('/* dbt */\ntruncate table "testdbt"."test_schema".test_table')
             ]
         )
@@ -162,7 +161,6 @@ class TestNetezzaConnection(TestCase):
         self.adapter.rename_relation(from_relation=from_relation, to_relation=to_relation)
         self.mock_execute.assert_has_calls(
             [
-                mock.call('BEGIN'),
                 mock.call('/* dbt */\nalter table "testdbt"."test_schema".table_a rename to "testdbt"."test_schema".table_b')
             ]
         )

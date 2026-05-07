@@ -1,4 +1,6 @@
 import os
+import platform
+import tempfile
 import yaml
 from typing import Dict
 
@@ -40,6 +42,11 @@ def get_et_options_as_string(user_file_path: str):
 
 def create_et_options(project_path):
     yaml.add_representer(ETOptions, etoptions_representer)
-    et_options = ETOptions(options={'SkipRows': '1', 'Delimiter': "','", 'DateDelim': "'-'", 'MaxErrors': '0'})
+    options = {'SkipRows': '1', 'Delimiter': "','", 'DateDelim': "'-'", 'MaxErrors': '0'}
+    if platform.system() == 'Windows':
+        logdir = os.path.join(tempfile.gettempdir(), 'DBT')
+        os.makedirs(logdir, exist_ok=True)
+        options['LogDir'] = f"'{logdir}'"
+    et_options = ETOptions(options=options)
     with open(f"{project_path}/et_options.yml", "w") as file:
         yaml.dump([et_options], file, default_flow_style=False)

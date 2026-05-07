@@ -5,7 +5,7 @@ import click
 from pathlib import Path
 from dbt.cli import params as p
 from dbt.cli import requires
-from dbt.cli.main import cli, global_flags
+from dbt.cli.main import cli as dbt_cli, global_flags
 from dbt.task.init import InitTask
 from dbt.events.types import SettingUpProfile, InvalidProfileTemplateYAML
 from dbt_common.events.functions import fire_event
@@ -34,7 +34,7 @@ class NetezzaInitTask(InitTask):
         self.create_profile_from_target(adapter, profile_name=profile_name)
 
 # dbt init
-@cli.command("init")
+@dbt_cli.command("init")
 @click.pass_context
 @global_flags
 # for backwards compatibility, accept 'project_name' as an optional positional argument

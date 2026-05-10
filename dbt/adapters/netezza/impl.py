@@ -94,7 +94,12 @@ class NetezzaAdapter(SQLAdapter):
             raise
 
         relations: List[BaseRelation] = []
-        quote_policy = {"database": True, "schema": True, "identifier": True}
+        quoting = self.config.quoting
+        quote_policy = {
+            "database": quoting.get("database", True),
+            "schema": quoting.get("schema", True),
+            "identifier": quoting.get("identifier", True),
+        }
 
         columns = ["DATABASE", "SCHEMA", "NAME", "TYPE"]
         for _database, _schema, _identifier, _type in results.select(columns):
@@ -104,9 +109,12 @@ class NetezzaAdapter(SQLAdapter):
                 _type = self.Relation.External
             relations.append(
                 self.Relation.create(
-                    database=_database,
-                    schema=_schema,
-                    identifier=_identifier,
+                    # When a component is unquoted (quote_policy=False), Netezza stores
+                    # it as UPPERCASE. Lowercase it so the cache matches what dbt
+                    # configured. When quoted, the DB preserves exact case — keep it.
+                    database=_database if quoting.get("database", True) else _database.lower(),
+                    schema=_schema if quoting.get("schema", True) else _schema.lower(),
+                    identifier=_identifier if quoting.get("identifier", True) else _identifier.lower(),
                     quote_policy=quote_policy,
                     type=_type,
                 )
@@ -180,23 +188,6 @@ class NetezzaAdapter(SQLAdapter):
     def get_seed_file_path(self, model) -> str:
         return os.path.join(model["root_path"], model["original_file_path"])
     
-    @available
-    def verify_database(self, database):
-        if database.startswith('"'):
-            database = database.strip('"')
-        expected = self.config.credentials.database
-        if database.lower() != expected.lower():
-            raise UnexpectedDbReferenceError(self.type(), database, expected)
-        # return an empty string on success so macros can call this
-        return ""
-    
-    @available
-    def rename_relation(self, from_relation, to_relation):
-        self.cache_renamed(from_relation, to_relation)
-
-        kwargs = {"from_relation": from_relation, "to_relation": to_relation}
-        self.execute_macro('rename_relation', kwargs=kwargs)
-
     @available
     def verify_database(self, database):
         if database.startswith('"'):

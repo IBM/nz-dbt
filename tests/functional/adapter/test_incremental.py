@@ -1,3 +1,5 @@
+import pytest
+
 from dbt.tests.adapter.incremental.test_incremental_on_schema_change import (
     BaseIncrementalOnSchemaChangeSetup,
 )
@@ -7,7 +9,13 @@ from dbt.tests.adapter.incremental.test_incremental_merge_exclude_columns import
 
 
 class TestIncrementalOnSchemaChange(BaseIncrementalOnSchemaChangeSetup):
-    pass
+    @pytest.fixture(scope="class", autouse=True)
+    def setup_policy(self, quote_policy_override):
+        """Use parametrized quote policy."""
+        pass
 
 class TestMergeExcludeColumns(BaseMergeExcludeColumns):
-    pass
+    @pytest.fixture(scope="class", autouse=True)
+    def setup_policy(self, quote_policy_override):
+        """Use parametrized quote policy."""
+        pass

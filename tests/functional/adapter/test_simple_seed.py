@@ -26,12 +26,12 @@ _netezza_expected_sql = (
 )
 
 
-def _split_multi_row_insert(sql):
+def _split_multi_row_insert(sql, quote_identifiers=True):
     """Split multi-row INSERT VALUES into individual statements for Netezza.
 
     Netezza does not support INSERT ... VALUES (row1), (row2), ...
-    Also removes double-quoted column names since Netezza stores unquoted
-    identifiers as uppercase.
+    With the new quoting policy (identifier: True), schema names come pre-quoted
+    from setUp, and we add quotes around table names and remove quotes from column names.
     """
     statements = []
     for stmt in sql.split(";"):
@@ -40,28 +40,57 @@ def _split_multi_row_insert(sql):
             continue
         # Match INSERT INTO ... (cols) VALUES (row1), (row2), ...
         m = re.match(
-            r"(INSERT\s+INTO\s+\S+\s*\(([^)]+)\)\s*VALUES\s*)(.*)",
+            r"(INSERT\s+INTO\s+)(\S+)(\s*\(([^)]+)\)\s*VALUES\s*)(.*)",
             stmt,
             re.DOTALL | re.IGNORECASE,
         )
         if m:
-            table_and_cols = m.group(1)
-            # Remove double quotes around column names
-            table_and_cols = table_and_cols.replace('"', '')
-            rows_str = m.group(3)
-            # Split on "),\n" pattern to get individual rows
+            insert_prefix = m.group(1)  # "INSERT INTO "
+            table_name = m.group(2)      # '"{schema}".table'  
+            cols_prefix = m.group(3)     # " (...) VALUES "
+            column_list = m.group(4)     # column names
+            rows_str = m.group(5)        # row data
+            
+            # If table name has a dot and the second part isn't quoted, quote it
+            if quote_identifiers and '.' in table_name:
+                parts = table_name.rsplit('.', 1)
+                if not parts[1].startswith('"'):
+                    table_name = f'{parts[0]}."{parts[1]}"'
+            
+            # Remove quotes from column names only
+            column_list = column_list.replace('"', '')
+            
+            # Reconstruct statement
+            table_and_cols = f"{insert_prefix}{table_name} ({column_list}) VALUES "
+            
+            # Split rows
             rows = re.findall(r"\([^)]+\)", rows_str)
             for row in rows:
                 statements.append(f"{table_and_cols}{row}")
         else:
+            # For CREATE TABLE statements, optionally add quotes around table name
+            # Match CREATE TABLE "{schema}".table and add quotes to table
+            if quote_identifiers:
+                stmt = re.sub(
+                    r'(CREATE\s+TABLE\s+"?\{schema\}"?\.?)([a-zA-Z0-9_]+)',
+                    r'\1"\2"',
+                    stmt,
+                    flags=re.IGNORECASE
+                )
             statements.append(stmt)
     return statements
 
 
 class NetezzaSeedTestBase:
     @pytest.fixture(scope="class", autouse=True)
-    def setUp(self, project):
-        for stmt in _split_multi_row_insert(_netezza_expected_sql):
+    def setUp(self, project, quote_policy_override):
+        schema_quoted = quote_policy_override.get("schema", True)
+        identifier_quoted = quote_policy_override.get("identifier", True)
+        if schema_quoted:
+            sql = _netezza_expected_sql.replace('{schema}.', '"{schema}".')
+        else:
+            sql = _netezza_expected_sql
+        for stmt in _split_multi_row_insert(sql, quote_identifiers=identifier_quoted):
             project.run_sql(stmt)
 
     @pytest.fixture(autouse=True, scope="class")
@@ -90,6 +119,11 @@ class NetezzaSeedTestBase:
 
 
 class TestBasicSeedTests(NetezzaSeedTestBase, BaseBasicSeedTests):
+    @pytest.fixture(scope="class", autouse=True)
+    def setup_policy(self, quote_policy_override):
+        """Use parametrized quote policy."""
+        pass
+    
     def test_simple_seed_full_refresh_flag(self, project):
         """Netezza does not support CASCADE on DROP TABLE, so the downstream
         view survives a full-refresh seed.  Override to expect exists=True."""
@@ -100,6 +134,11 @@ class TestBasicSeedTests(NetezzaSeedTestBase, BaseBasicSeedTests):
 
 
 class TestSeedConfigFullRefreshOn(NetezzaSeedTestBase, BaseSeedConfigFullRefreshOn):
+    @pytest.fixture(scope="class", autouse=True)
+    def setup_policy(self, quote_policy_override):
+        """Use parametrized quote policy."""
+        pass
+    
     def test_simple_seed_full_refresh_config(self, project):
         """Netezza does not support CASCADE on DROP TABLE, so the downstream
         view survives a full-refresh seed.  Override to expect exists=True."""

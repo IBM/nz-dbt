@@ -28,10 +28,10 @@
             {%- if not loop.last %},{% endif -%}
             {% endfor %}
         from
-            {{ relation.database }}.._v_sys_user_priv
+            {{ netezza_database_ref(relation.database) }}.._v_sys_user_priv
         where
-            lower(schema) = '{{ relation.schema|lower }}'
-            and lower(objectname) = '{{ relation.identifier|lower }}'
+            {{ netezza_schema_match('schema', relation.schema) }}
+            and {{ netezza_identifier_match('objectname', relation.identifier) }}
             and username != session_user
     ),
 

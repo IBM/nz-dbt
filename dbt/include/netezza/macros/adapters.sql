@@ -58,7 +58,7 @@
   {% set sql %}
     select distinct schema_name
     from {{ information_schema_name(database) }}.SCHEMATA
-    where catalog_name ilike '{{ database.strip("\"") }}'
+    where {{ netezza_database_match('catalog_name', database) }}
   {% endset %}
   {{ return(run_query(sql)) }}
 {% endmacro %}
@@ -66,20 +66,20 @@
 {% macro netezza__list_relations_without_caching(schema_relation) %}
   {% call statement('list_relations_without_caching', fetch_result=True, auto_begin=False) -%}
     select
-      '{{ schema_relation.database }}' as database,
+      '{{ schema_relation.database | replace('"', '') }}' as database,
       tablename as name,
       schema as schema,
       'table' as type
-    from {{ schema_relation.database }}.._v_table
-    where schema ilike '{{ schema_relation.schema }}'
+    from {{ netezza_database_ref(schema_relation.database) }}.._v_table
+    where {{ netezza_schema_match('schema', schema_relation.schema) }}
     union all
     select
-      '{{ schema_relation.database }}' as database,
+      '{{ schema_relation.database | replace('"', '') }}' as database,
       viewname as name,
       schema as schema,
       'view' as type
-    from {{ schema_relation.database }}.._v_view
-    where schema ilike '{{ schema_relation.schema }}'
+    from {{ netezza_database_ref(schema_relation.database) }}.._v_view
+    where {{ netezza_schema_match('schema', schema_relation.schema) }}
   {% endcall %}
   {{ return(load_result('list_relations_without_caching').table) }}
 {% endmacro %}
@@ -100,15 +100,15 @@
      Check _v_schema first to avoid errors on non-existing schemas. #}
   {%- set schema_check %}
     select count(1) as cnt
-    from {{ relation.database }}.._v_schema
-    where upper(schema) = upper('{{ relation.without_identifier().schema }}')
+    from {{ netezza_database_ref(relation.database) }}.._v_schema
+    where {{ netezza_schema_match('schema', relation.without_identifier().schema) }}
   {%- endset -%}
 
   {%- set schema_exists = (run_query(schema_check).columns[0].values() | first) | int -%}
 
   {%- if schema_exists > 0 -%}
     {%- call statement('drop_schema') -%}
-      drop schema {{ relation.without_identifier() }} cascade
+      drop schema {{ netezza_database_ref(relation.database) }}.{{ netezza_schema_ref(relation.without_identifier().schema) }} cascade
     {%- endcall -%}
   {%- endif -%}
 {%- endmacro %}
@@ -128,9 +128,9 @@
        cache may have an incorrect type (e.g. incremental materialization always
        sets target_relation.type='table' even when the existing object is a view). --#}
   {% set objtype_query %}
-    select objtype from {{ from_relation.database }}.._v_objects
-    where objname = upper('{{ from_relation.identifier }}')
-    and schema = upper('{{ from_relation.schema }}')
+    select objtype from {{ netezza_database_ref(from_relation.database) }}.._v_objects
+    where {{ netezza_identifier_match('objname', from_relation.identifier) }}
+    and {{ netezza_schema_match('schema', from_relation.schema) }}
   {% endset %}
   {% set results = run_query(objtype_query) %}
   {% if results and results.rows | length > 0 %}
@@ -152,9 +152,9 @@
           numeric_precision,
           numeric_scale
       from {{ relation.information_schema('columns') }}
-      where table_name ilike '{{ relation.identifier }}'
+      where {{ netezza_identifier_match('table_name', relation.identifier) }}
         {% if relation.schema %}
-        and table_schema ilike '{{ relation.schema }}'
+        and {{ netezza_schema_match('table_schema', relation.schema) }}
         {% endif %}
       order by ordinal_position
   {% endcall %}

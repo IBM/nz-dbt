@@ -8,6 +8,8 @@ These tests validate core adapter functionality:
 - Connection validation
 - Catalog retrieval
 """
+import pytest
+
 from dbt.tests.adapter.basic.test_base import BaseSimpleMaterializations
 from dbt.tests.adapter.basic.test_empty import BaseEmpty
 from dbt.tests.adapter.basic.test_ephemeral import BaseEphemeral
@@ -21,40 +23,70 @@ from dbt.tests.adapter.basic.test_validate_connection import BaseValidateConnect
 
 
 class TestSimpleMaterializations(BaseSimpleMaterializations):
-    pass
+    @pytest.fixture(scope="class", autouse=True)
+    def setup_policy(self, quote_policy_override):
+        """Use parametrized quote policy."""
+        pass
 
 
 class TestEmpty(BaseEmpty):
-    pass
+    @pytest.fixture(scope="class", autouse=True)
+    def setup_policy(self, quote_policy_override):
+        """Use parametrized quote policy."""
+        pass
 
 
 class TestEphemeral(BaseEphemeral):
-    pass
+    @pytest.fixture(scope="class", autouse=True)
+    def setup_policy(self, quote_policy_override):
+        """Use parametrized quote policy."""
+        pass
 
 
 class TestGenericTests(BaseGenericTests):
-    pass
+    @pytest.fixture(scope="class", autouse=True)
+    def setup_policy(self, quote_policy_override):
+        """Use parametrized quote policy."""
+        pass
 
 
 class TestIncremental(BaseIncremental):
-    pass
+    @pytest.fixture(scope="class", autouse=True)
+    def setup_policy(self, quote_policy_override):
+        """Use parametrized quote policy."""
+        pass
 
 
 class TestSingularTests(BaseSingularTests):
-    pass
+    @pytest.fixture(scope="class", autouse=True)
+    def setup_policy(self, quote_policy_override):
+        """Use parametrized quote policy."""
+        pass
 
 
 class TestSingularTestsEphemeral(BaseSingularTestsEphemeral):
-    pass
+    @pytest.fixture(scope="class", autouse=True)
+    def setup_policy(self, quote_policy_override):
+        """Use parametrized quote policy."""
+        pass
 
 
 class TestSnapshotCheckCols(BaseSnapshotCheckCols):
-    pass
+    @pytest.fixture(scope="class", autouse=True)
+    def setup_policy(self, quote_policy_override):
+        """Use parametrized quote policy."""
+        pass
 
 
 class TestSnapshotTimestamp(BaseSnapshotTimestamp):
-    pass
+    @pytest.fixture(scope="class", autouse=True)
+    def setup_policy(self, quote_policy_override):
+        """Use parametrized quote policy."""
+        pass
 
 
 class TestValidateConnection(BaseValidateConnection):
-    pass
+    @pytest.fixture(scope="class", autouse=True)
+    def setup_policy(self, quote_policy_override):
+        """Use parametrized quote policy."""
+        pass

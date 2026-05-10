@@ -7,14 +7,25 @@ from dbt.tests.adapter.simple_copy.test_copy_uppercase import BaseSimpleCopyUppe
 
 
 class TestSimpleCopy(SimpleCopyBase):
-    pass
+    @pytest.fixture(scope="class", autouse=True)
+    def setup_policy(self, quote_policy_override):
+        """Use parametrized quote policy."""
+        pass
 
 
 class TestEmptyModelsArentRun(EmptyModelsArentRunBase):
-    pass
+    @pytest.fixture(scope="class", autouse=True)
+    def setup_policy(self, quote_policy_override):
+        """Use parametrized quote policy."""
+        pass
 
 
 class TestSimpleCopyUppercase(BaseSimpleCopyUppercase):
+    @pytest.fixture(scope="class", autouse=True)
+    def setup_policy(self, quote_policy_override):
+        """Use parametrized quote policy."""
+        pass
+
     @pytest.fixture(scope="class")
     def dbt_profile_target(self):
         return {

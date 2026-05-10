@@ -15,10 +15,10 @@
         _v_relation_column.description as column_comment,
         _v_relation_column.owner as table_owner
     from 
-        {{ information_schema.database }}.._v_objects
-        left join {{ information_schema.database }}.._v_table on _v_table.objid = _v_objects.objid
-        left join {{ information_schema.database }}.._v_view on _v_view.objid = _v_objects.objid
-        inner join {{ information_schema.database }}.._v_relation_column on _v_relation_column.objid = _v_objects.objid
+        {{ netezza_database_ref(information_schema.database) }}.._v_objects
+        left join {{ netezza_database_ref(information_schema.database) }}.._v_table on _v_table.objid = _v_objects.objid
+        left join {{ netezza_database_ref(information_schema.database) }}.._v_view on _v_view.objid = _v_objects.objid
+        inner join {{ netezza_database_ref(information_schema.database) }}.._v_relation_column on _v_relation_column.objid = _v_objects.objid
     where 
         _v_objects.objtype in ('TABLE', 'VIEW')
     order by

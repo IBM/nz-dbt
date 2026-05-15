@@ -25,7 +25,7 @@
 #}
 
 {% macro netezza_database_match(column, value) -%}
-  {%- set clean = value | replace('"', '') -%}
+  {%- set clean = value | replace('"', '') | replace("'", "''") -%}
   {%- if adapter.config.quoting.get('database', true) is not false -%}
     {{ column }} = '{{ clean }}'
   {%- else -%}
@@ -34,7 +34,7 @@
 {%- endmacro %}
 
 {% macro netezza_schema_match(column, value) -%}
-  {%- set clean = value | replace('"', '') -%}
+  {%- set clean = value | replace('"', '') | replace("'", "''") -%}
   {%- if adapter.config.quoting.get('schema', true) is not false -%}
     {{ column }} = '{{ clean }}'
   {%- else -%}
@@ -43,7 +43,7 @@
 {%- endmacro %}
 
 {% macro netezza_identifier_match(column, value) -%}
-  {%- set clean = value | replace('"', '') -%}
+  {%- set clean = value | replace('"', '') | replace("'", "''") -%}
   {%- if adapter.config.quoting.get('identifier', true) is not false -%}
     {{ column }} = '{{ clean }}'
   {%- else -%}

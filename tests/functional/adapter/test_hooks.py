@@ -5,19 +5,6 @@ import pytest
 
 from dbt.tests.adapter.hooks.test_model_hooks import BaseTestPrePost
 from dbt.tests.adapter.hooks.test_run_hooks import BasePrePostRunHooks
-from dbt.adapters.netezza.relation import NetezzaQuotePolicy
-
-
-def _format_relation(schema_expr: str, table: str) -> str:
-    """Format schema.table according to active quote policy."""
-    policy = NetezzaQuotePolicy()
-    if policy.schema and policy.identifier:
-        return f'"{schema_expr}"."{table}"'
-    elif policy.schema:
-        return f'"{schema_expr}".{table}'
-    elif policy.identifier:
-        return f'{schema_expr}."{table}"'
-    return f'{schema_expr}.{table}'
 
 
 class TestPrePost(BaseTestPrePost):
@@ -50,7 +37,7 @@ class TestPrePostRunHooks(BasePrePostRunHooks):
         for schema in [f'"{project.test_schema}"', project.test_schema]:
             try:
                 project.run_sql(f'drop schema {schema} CASCADE')
-            except:
+            except Exception:
                 pass
 
     @pytest.fixture(scope="function")
@@ -75,11 +62,11 @@ class TestPrePostRunHooks(BasePrePostRunHooks):
         # Drop tables (ignore errors if they don't exist)
         try:
             project.run_sql(f'drop table {schema_fmt}.{ident_fmt("schemas")} if exists')
-        except:
+        except Exception:
             pass
         try:
             project.run_sql(f'drop table {schema_fmt}.{ident_fmt("db_schemas")} if exists')
-        except:
+        except Exception:
             pass
         os.environ["TERM_TEST"] = "TESTING"
 

@@ -94,7 +94,12 @@ class NetezzaAdapter(SQLAdapter):
             raise
 
         relations: List[BaseRelation] = []
-        quote_policy = {"database": True, "schema": True, "identifier": True}
+        quoting = self.config.quoting
+        quote_policy = {
+            "database": quoting.get("database", True),
+            "schema": quoting.get("schema", True),
+            "identifier": quoting.get("identifier", True),
+        }
 
         columns = ["DATABASE", "SCHEMA", "NAME", "TYPE"]
         for _database, _schema, _identifier, _type in results.select(columns):
@@ -104,9 +109,12 @@ class NetezzaAdapter(SQLAdapter):
                 _type = self.Relation.External
             relations.append(
                 self.Relation.create(
-                    database=_database,
-                    schema=_schema,
-                    identifier=_identifier,
+                    # When a component is unquoted (quote_policy=False), Netezza stores
+                    # it as UPPERCASE. Lowercase it so the cache matches what dbt
+                    # configured. When quoted, the DB preserves exact case — keep it.
+                    database=_database if quoting.get("database", True) else _database.lower(),
+                    schema=_schema if quoting.get("schema", True) else _schema.lower(),
+                    identifier=_identifier if quoting.get("identifier", True) else _identifier.lower(),
                     quote_policy=quote_policy,
                     type=_type,
                 )
@@ -124,6 +132,7 @@ class NetezzaAdapter(SQLAdapter):
         # source: https://github.com/fishtown-analytics/dbt/pull/2255/files#diff-39545f1198b754f67de59957630a527b6d1df026aff22cc90de923f5653d5ad8
         lens = [len(d.encode("utf-8")) for d in column.values_without_nulls()]
         max_len = max(lens) if lens else 64
+        max_len = max(max_len, 256)
         return f"varchar({max_len})"
 
     # Override to remove `without time zone` because Netezza does not support this
@@ -188,23 +197,6 @@ class NetezzaAdapter(SQLAdapter):
             raise UnexpectedDbReferenceError(self.type(), database, expected)
         # return an empty string on success so macros can call this
         return ""
-    
-    @available
-    def rename_relation(self, from_relation, to_relation):
-        self.cache_renamed(from_relation, to_relation)
-
-        kwargs = {"from_relation": from_relation, "to_relation": to_relation}
-        self.execute_macro('rename_relation', kwargs=kwargs)
-
-    @available
-    def verify_database(self, database):
-        if database.startswith('"'):
-            database = database.strip('"')
-        expected = self.config.credentials.database
-        if database.lower() != expected.lower():
-            raise UnexpectedDbReferenceError(self.type(), database, expected)
-        # return an empty string on success so macros can call this
-        return ""
 
     @available
     def rename_relation(self, from_relation, to_relation):
@@ -216,6 +208,28 @@ class NetezzaAdapter(SQLAdapter):
     @available
     def get_et_options(self, model) -> str:
         return get_et_options_as_string(os.path.join(model["root_path"], "et_options.yml"))
+
+    @available
+    def groom_table_versions(self, relation) -> str:
+        """Attempt GROOM TABLE <relation> VERSIONS, tolerating Netezza's
+        "no versions / not applicable" error which is raised when the table
+        has no versioned rows yet (e.g. right after a full-refresh CTAS or
+        when prior incremental runs only INSERTed). Any other error is
+        re-raised. Executes at the raw cursor level to suppress benign error
+        messages that would otherwise pollute logs.
+        """
+        import nzpy
+        sql = f"GROOM TABLE {relation} VERSIONS"
+        conn = self.connections.get_thread_connection()
+        with conn.handle.cursor() as cursor:
+            try:
+                cursor.execute(sql)
+            except nzpy.core.ProgrammingError as exc:
+                message = str(exc).lower()
+                if "not applicable" in message or "has no versions" in message:
+                    return ""
+                raise DbtDatabaseError(str(exc)) from exc
+        return ""
 
     # Override to change the default value of quote_columns to False
     # Source: https://github.com/dbt-labs/dbt-core/blob/7f8d9a7af976f640e376900773a0d793acf3a3ce/core/dbt/adapters/base/impl.py#L812-L828

@@ -58,7 +58,7 @@
   {% set sql %}
     select distinct schema_name
     from {{ information_schema_name(database) }}.SCHEMATA
-    where catalog_name ilike '{{ database.strip("\"") }}'
+    where {{ netezza_database_match('catalog_name', database) }}
   {% endset %}
   {{ return(run_query(sql)) }}
 {% endmacro %}
@@ -66,29 +66,52 @@
 {% macro netezza__list_relations_without_caching(schema_relation) %}
   {% call statement('list_relations_without_caching', fetch_result=True, auto_begin=False) -%}
     select
-      '{{ schema_relation.database }}' as database,
+      '{{ schema_relation.database | replace('"', '') }}' as database,
       tablename as name,
       schema as schema,
       'table' as type
-    from {{ schema_relation.database }}.._v_table
-    where schema ilike '{{ schema }}'
+    from {{ netezza_database_ref(schema_relation.database) }}.._v_table
+    where {{ netezza_schema_match('schema', schema_relation.schema) }}
     union all
     select
-      '{{ schema_relation.database }}' as database,
+      '{{ schema_relation.database | replace('"', '') }}' as database,
       viewname as name,
       schema as schema,
       'view' as type
-    from {{ schema_relation.database }}.._v_view
-    where schema ilike '{{ schema }}'
+    from {{ netezza_database_ref(schema_relation.database) }}.._v_view
+    where {{ netezza_schema_match('schema', schema_relation.schema) }}
   {% endcall %}
   {{ return(load_result('list_relations_without_caching').table) }}
 {% endmacro %}
 
-{% macro netezza__drop_schema(relation) -%}
-  {%- call statement('drop_schema') -%}
-    {{ exceptions.raise_compiler_error("dbt-ibm-netezza does not support drop_schema") }}
-  {% endcall %}
+{% macro netezza__get_empty_subquery_sql(select_sql, select_sql_header=none) %}
+    {%- if select_sql_header is not none -%}
+    {{ select_sql_header }}
+    {%- endif -%}
+    select * from (
+        {{ select_sql }}
+    ) __dbt_sbq
+    where false
+    limit 0
 {% endmacro %}
+
+{% macro netezza__drop_schema(relation) -%}
+  {# Netezza does not support DROP SCHEMA IF EXISTS.
+     Check _v_schema first to avoid errors on non-existing schemas. #}
+  {%- set schema_check %}
+    select count(1) as cnt
+    from {{ netezza_database_ref(relation.database) }}.._v_schema
+    where {{ netezza_schema_match('schema', relation.without_identifier().schema) }}
+  {%- endset -%}
+
+  {%- set schema_exists = (run_query(schema_check).columns[0].values() | first) | int -%}
+
+  {%- if schema_exists > 0 -%}
+    {%- call statement('drop_schema') -%}
+      drop schema {{ netezza_database_ref(relation.database) }}.{{ netezza_schema_ref(relation.without_identifier().schema) }} cascade
+    {%- endcall -%}
+  {%- endif -%}
+{%- endmacro %}
 
 {% macro netezza__drop_relation(relation) -%}
   {% call statement('drop_relation', auto_begin=False) -%}
@@ -101,8 +124,22 @@
 {% endmacro %}
 
 {% macro netezza__rename_relation(from_relation, to_relation) -%}
+  {#-- Look up the actual object type from the database because the relation
+       cache may have an incorrect type (e.g. incremental materialization always
+       sets target_relation.type='table' even when the existing object is a view). --#}
+  {% set objtype_query %}
+    select objtype from {{ netezza_database_ref(from_relation.database) }}.._v_objects
+    where {{ netezza_identifier_match('objname', from_relation.identifier) }}
+    and {{ netezza_schema_match('schema', from_relation.schema) }}
+  {% endset %}
+  {% set results = run_query(objtype_query) %}
+  {% if results and results.rows | length > 0 %}
+    {% set actual_type = results.rows[0][0] | lower %}
+  {% else %}
+    {% set actual_type = from_relation.type %}
+  {% endif %}
   {% call statement('rename_relation') -%}
-    alter {{ from_relation.type }} {{ from_relation }} rename to {{ to_relation }}
+    alter {{ actual_type }} {{ from_relation }} rename to {{ to_relation }}
   {%- endcall %}
 {% endmacro %}
 
@@ -115,9 +152,9 @@
           numeric_precision,
           numeric_scale
       from {{ relation.information_schema('columns') }}
-      where table_name ilike '{{ relation.identifier }}'
+      where {{ netezza_identifier_match('table_name', relation.identifier) }}
         {% if relation.schema %}
-        and table_schema ilike '{{ relation.schema }}'
+        and {{ netezza_schema_match('table_schema', relation.schema) }}
         {% endif %}
       order by ordinal_position
   {% endcall %}
@@ -139,9 +176,29 @@
   {% endfor %}
 {% endmacro %}
 
+{% macro netezza__alter_relation_add_remove_columns(relation, add_columns, remove_columns) %}
+  {# Run the default ALTER TABLE ADD/DROP COLUMN statements first. #}
+  {% do default__alter_relation_add_remove_columns(relation, add_columns, remove_columns) %}
+  {# Netezza requires GROOM TABLE VERSIONS after DDL produces versioned rows so
+     that subsequent MERGE statements can run. Use the safe adapter helper so
+     we don't fail when no versioned rows exist. #}
+  {% if (add_columns and add_columns | length > 0) or (remove_columns and remove_columns | length > 0) %}
+    {% do adapter.groom_table_versions(relation) %}
+  {% endif %}
+{% endmacro %}
+
 {% macro netezza_escape_comment(comment) -%}
   {% if comment is not string %}
     {% do exceptions.raise_compiler_error('cannot escape a non-string: ' ~ comment) %}
   {% endif %}
   '{{ comment | replace("'", "''")}}'
 {%- endmacro %}
+
+{% macro netezza__can_clone_table() %}
+  {{ return(True) }}
+{% endmacro %}
+
+{% macro netezza__create_or_replace_clone(this_relation, defer_relation) %}
+  {% do adapter.drop_relation(this_relation) %}
+  create table {{ this_relation }} as select * from {{ defer_relation }}
+{% endmacro %}

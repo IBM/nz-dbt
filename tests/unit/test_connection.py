@@ -222,3 +222,66 @@ class TestNetezzaConnection(TestCase):
         self.adapter.cleanup_connections()
         self._adapter = NetezzaAdapter(self.config, self.mp_context)
         self.adapter.verify_database("testdbt")
+
+
+class TestMergeRowcountHandler(TestCase):
+    """
+    Unit tests for `_install_merge_rowcount_handler`, which patches a live
+    nzpy connection so that `cursor.rowcount` reflects MERGE statements.
+    """
+
+    def setUp(self):
+        from dbt.adapters.netezza.connections import NetezzaConnectionManager
+
+        self.install = NetezzaConnectionManager._install_merge_rowcount_handler
+
+        self.original_calls = []
+
+        def original(data, cursor):
+            self.original_calls.append((data, cursor))
+
+        self.handle = mock.MagicMock()
+        self.handle.handle_COMMAND_COMPLETE = original
+        self.install(self.handle)
+
+        self.cursor = mock.MagicMock()
+        self.cursor._row_count = -1
+
+    def _send(self, tag_bytes):
+        # nzpy passes the raw payload including a trailing NUL byte; the handler
+        # strips the last byte before splitting.
+        self.handle.handle_COMMAND_COMPLETE(tag_bytes + b"\x00", self.cursor)
+
+    def test_merge_tag_sums_insert_update_delete(self):
+        self._send(b"MERGE 3/2/1")
+        self.assertEqual(self.cursor._row_count, 6)
+        self.assertEqual(self.original_calls, [])
+
+    def test_merge_tag_with_zero_parts(self):
+        self._send(b"MERGE 0/5/0")
+        self.assertEqual(self.cursor._row_count, 5)
+
+    def test_merge_tag_accumulates_across_calls(self):
+        self._send(b"MERGE 1/0/0")
+        self._send(b"MERGE 0/2/0")
+        self.assertEqual(self.cursor._row_count, 3)
+
+    def test_merge_tag_plain_integer(self):
+        # Defensive path: if Netezza ever emits `MERGE <n>` instead of slashes.
+        self._send(b"MERGE 7")
+        self.assertEqual(self.cursor._row_count, 7)
+
+    def test_non_merge_tag_delegates_to_original(self):
+        self._send(b"INSERT 0 4")
+        self.assertEqual(len(self.original_calls), 1)
+        data, cursor = self.original_calls[0]
+        self.assertEqual(data, b"INSERT 0 4\x00")
+        self.assertIs(cursor, self.cursor)
+        # Our wrapper must not touch _row_count for non-MERGE tags.
+        self.assertEqual(self.cursor._row_count, -1)
+
+    def test_unparseable_merge_tag_falls_back_to_original(self):
+        self._send(b"MERGE notanumber")
+        self.assertEqual(len(self.original_calls), 1)
+        self.assertEqual(self.cursor._row_count, -1)
+

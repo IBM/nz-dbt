@@ -83,7 +83,13 @@ class TestRetry:
         results = run_dbt(["build", "--select", "second_model"])
 
         # ...but it should fail when run with warn-error, due to a warning...
-        results = run_dbt(["--warn-error", "build", "--select", "second_model"], expect_pass=False)
+        # Use --warn-error-options to silence deprecation warnings (dbt 1.10+ emits these)
+        # Use a custom target-path to isolate the warn-error state from the normal run
+        results = run_dbt(
+            ["--warn-error-options", '{"error": "all", "silence": ["Deprecations"]}',
+             "build", "--select", "second_model", "--target-path", "target_warn_error"],
+            expect_pass=False
+        )
 
         expected_statuses = {
             "second_model": RunStatus.Success,
@@ -92,11 +98,16 @@ class TestRetry:
 
         assert {n.node.name: n.status for n in results.results} == expected_statuses
 
-        # Retry regular, should pass
+        # Retry regular (using default target), should pass since default target had a successful run
         run_dbt(["retry"])
 
-        # Retry with --warn-error, should fail
-        run_dbt(["--warn-error", "retry"], expect_pass=False)
+        # Retry with --warn-error from the warn_error target, should fail
+        # Use --warn-error-options to silence deprecation warnings
+        run_dbt(
+            ["--warn-error-options", '{"error": "all", "silence": ["Deprecations"]}',
+             "retry", "--state", "target_warn_error"],
+            expect_pass=False
+        )
 
     def test_removed_file(self, project):
         run_dbt(["build"], expect_pass=False)

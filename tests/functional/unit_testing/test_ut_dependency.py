@@ -87,7 +87,7 @@ class TestUnitTestingInDependency:
     def setUp(self, project_root):
         local_dependency_files = {
             "dbt_project.yml": local_dependency__dbt_project_yml,
-        "et_options.yml": _get_local_dependency_et_options_yml(),
+            "et_options.yml": _get_local_dependency_et_options_yml(),
             "models": {
                 "schema.yml": local_dependency__schema_yml,
                 "dep_model.sql": local_dependency__dep_model_sql,

@@ -101,7 +101,32 @@ class NetezzaAdapter(SQLAdapter):
             "identifier": quoting.get("identifier", True),
         }
 
-        columns = ["DATABASE", "SCHEMA", "NAME", "TYPE"]
+        # Drivers may preserve column aliases with different casing, so
+        # resolve the expected metadata columns case-insensitively.
+        expected_columns = ("DATABASE", "SCHEMA", "NAME", "TYPE")
+        available_columns = {
+            column.upper(): column
+            for column in results.column_names
+        }
+
+        missing_columns = [
+            column
+            for column in expected_columns
+            if column not in available_columns
+        ]
+
+        if missing_columns:
+            raise CompilationError(
+                "Expected columns {} in list_relations_without_caching result, got {}".format(
+                    list(expected_columns),
+                    list(results.column_names),
+                )
+            )
+
+        columns = [
+            available_columns[column]
+            for column in expected_columns
+        ]
         for _database, _schema, _identifier, _type in results.select(columns):
             try:
                 _type = self.Relation.get_relation_type(_type.lower())

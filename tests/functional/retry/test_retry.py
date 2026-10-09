@@ -3,7 +3,7 @@ from shutil import copytree, move
 from dbt.contracts.results import RunStatus, TestStatus
 from dbt.exceptions import TargetNotFoundError
 from dbt.tests.util import rm_file, write_file
-from dbt_common.exceptions import DbtRuntimeError
+from dbt_common.exceptions import CompilationError, DbtRuntimeError
 from tests.functional.utils import run_dbt
 import pytest
 
@@ -126,7 +126,7 @@ class TestRetry:
         run_dbt(["build"], expect_pass=False)
 
         rm_file("models", "third_model.sql")
-        with pytest.raises(ValueError, match="Couldn't find model 'model.test.third_model'"):
+        with pytest.raises(CompilationError, match="Couldn't find model 'model.test.third_model'"):
             run_dbt(["retry"], expect_pass=False)
 
 

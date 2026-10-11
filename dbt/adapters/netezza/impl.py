@@ -28,6 +28,7 @@ from dbt.adapters.contracts.macros import MacroResolverProtocol
 @dataclass
 class NetezzaConfig(AdapterConfig):
     dist: Optional[str] = None
+    organize: Optional[str] = None
 
 
 FRESHNESS_MACRO_NAME = "collect_freshness"  # Macro used to analyze the freshness of the data imports in tables

@@ -378,3 +378,32 @@ class TestNetezzaAdapter(TestCase):
             self.assertEqual(tupled_catalog, {rows[0], rows[1], rows[3]})
 
         self.assertEqual(exceptions, [])
+
+    @mock.patch.object(NetezzaAdapter, "execute_macro")
+    def test_list_relations_without_caching_column_names_are_case_insensitive(
+        self, mock_execute
+    ):
+        schema_relation = self.adapter.Relation.create(
+            database="testdbt",
+            schema="admin",
+        )
+
+        for column_names in (
+            ["DATABASE", "SCHEMA", "NAME", "TYPE"],
+            ["database", "schema", "name", "type"],
+            ["Database", "Schema", "Name", "Type"],
+        ):
+            with self.subTest(column_names=column_names):
+                mock_execute.return_value = agate.Table(
+                    rows=[
+                        ("testdbt", "admin", "orders", "table"),
+                    ],
+                    column_names=column_names,
+                )
+
+                relations = self.adapter.list_relations_without_caching(
+                    schema_relation
+                )
+
+                self.assertEqual(len(relations), 1)
+                self.assertEqual(relations[0].identifier, "orders")

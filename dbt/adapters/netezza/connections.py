@@ -120,7 +120,8 @@ class NetezzaConnectionManager(connection_cls):
                 "host": credentials.host,
                 "port": credentials.port,
                 "database": credentials.database,
-                "logOptions": nzpy.LogOptions.Disabled
+                "logOptions": nzpy.LogOptions.Disabled,
+                "logLevel": 0,
             }
 
         def connect():
@@ -129,6 +130,16 @@ class NetezzaConnectionManager(connection_cls):
                 password=credentials.password,
                 **connection_args,
             )
+            handle.autocommit = True
+            # Make MERGE statements report a real `rows_affected` value
+            # (see _install_merge_rowcount_handler).
+            try:
+                cls._install_merge_rowcount_handler(handle)
+            except Exception as e:  # pragma: no cover - defensive
+                logger.debug(
+                    "Could not install MERGE rowcount handler on nzpy connection: {}",
+                    str(e),
+                )
             return handle
 
         retryable_exceptions = [
@@ -149,6 +160,39 @@ class NetezzaConnectionManager(connection_cls):
         """
         connection.handle.close()
 
+    @staticmethod
+    def _install_merge_rowcount_handler(handle):
+        """
+        Make `cursor.rowcount` reflect MERGE statements.
+
+        Netezza's MERGE CommandComplete tag is `MERGE <ins>/<upd>/<del>`.
+        nzpy's default parser does `int(values[-1])` and raises on the
+        slash-delimited token, so we wrap the handler to sum the parts
+        and delegate everything else to the original.
+        """
+        original = handle.handle_COMMAND_COMPLETE
+
+        def handle_COMMAND_COMPLETE(data, cursor):
+            try:
+                values = data[:-1].split(b" ")
+                if values and values[0] == b"MERGE":
+                    last = values[-1]
+                    if b"/" in last:
+                        parts = last.split(b"/")
+                        row_count = sum(int(p) for p in parts if p)
+                    else:
+                        row_count = int(last)
+                    if cursor._row_count == -1:
+                        cursor._row_count = row_count
+                    else:
+                        cursor._row_count += row_count
+                    return
+            except Exception as e:  # pragma: no cover - defensive
+                logger.debug("Failed to parse MERGE CommandComplete tag: {}", str(e))
+            return original(data, cursor)
+
+        handle.handle_COMMAND_COMPLETE = handle_COMMAND_COMPLETE
+
     @classmethod
     def get_credentials(cls, credentials):
         return credentials
@@ -164,6 +208,23 @@ class NetezzaConnectionManager(connection_cls):
         """
         return AdapterResponse("OK", rows_affected=cursor.rowcount)
 
+    # Netezza doesn't support transactional DDL, so we use autocommit=True
+    # and make transaction methods no-ops (similar to Snowflake adapter)
+    def add_begin_query(self, *args, **kwargs):
+        pass
+
+    def add_commit_query(self, *args, **kwargs):
+        pass
+
+    def begin(self):
+        pass
+
+    def commit(self):
+        pass
+
+    def clear_transaction(self):
+        pass
+
     # Override to prevent error when calling execute without bindings
     def add_query(
         self,
@@ -173,8 +234,7 @@ class NetezzaConnectionManager(connection_cls):
         abridge_sql_log: bool = False,
     ) -> Tuple[Connection, Any]:
         connection = self.get_thread_connection()
-        if auto_begin and connection.transaction_open is False:
-            self.begin()
+
         fire_event(ConnectionUsed(conn_type=self.TYPE, conn_name=connection.name))
 
         with self.exception_handler(sql):
@@ -209,16 +269,28 @@ class NetezzaConnectionManager(connection_cls):
 
     @classmethod
     def data_type_code_to_name(cls, type_code) -> str:
+        # nzpy sends numeric OIDs from Netezza's type system
         name_map = {
-            "int": "INTEGER",
-            "str": "STRING",
-            "date": "DATE",
-            "datetime": "DATETIME",
-            "bool": "BOOLEAN",
-            "float": "FLOAT",
+            16: "BOOLEAN",
+            17: "BYTEA",
+            20: "BIGINT",
+            21: "SMALLINT",
+            23: "INTEGER",
+            25: "TEXT",
+            700: "REAL",
+            701: "DOUBLE PRECISION",
+            790: "NUMERIC",
+            1042: "CHARACTER",
+            1043: "CHARACTER VARYING",
+            1082: "DATE",
+            1083: "TIME",
+            1114: "TIMESTAMP",
+            1184: "TIMESTAMP",
+            1186: "INTERVAL",
+            1700: "NUMERIC",
         }
         if type_code in name_map:
-            return name_map[type_code].name
+            return name_map[type_code]
         else:
             warn_or_error(TypeCodeNotFound(type_code=type_code))
             return f"unknown type_code {type_code}"

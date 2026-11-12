@@ -40,6 +40,31 @@ models:
     +dist: random
 ```
 
+Netezza also supports organizing keys, which create a "clustered base table" (CBT). Up to four organizing key columns are zone-mapped, which can speed up queries that filter on those columns.
+
+- `organize` can take a setting of `none`, a single column as a string (e.g. `visit_key`), or a list of up to 4 columns (e.g. `['visit_key','visit_event_key']`). Unlike `dist`, there is no `random` option.
+
+Organize keys can be added to the `{{ config(...) }}` block for a specific model `.sql` file, e.g.:
+
+```sql
+-- Example with one organizing key
+{{ config(materialized='table', dist='visit_key', organize='visit_key') }}
+
+select ...
+
+
+-- Example with multiple organizing keys
+{{ config(materialized='table', dist=['visit_key', 'visit_event_key'], organize=['visit_key', 'visit_event_key']) }}
+
+select ...
+```
+
+Since specifying no organizing key (or `none`) is already Netezza's default behavior, `organize` is best set at the model level where it provides a real performance benefit, rather than as a `dbt_project.yml` default.
+
+> **Note:**
+>
+> Setting `organize` only defines the organizing key(s) for the table; it does not reorganize existing rows. After creating or altering a table's organizing key(s), run [`GROOM TABLE ... VERSIONS`/`RECLAIM`](https://www.ibm.com/docs/en/netezza?topic=cbt-reorganize-table-data) to physically reorganize the data and start benefiting from zone maps.
+
 # Testing Sample dbt project
 
 ## Installation Guide

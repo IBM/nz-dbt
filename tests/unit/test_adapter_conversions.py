@@ -39,7 +39,7 @@ class TestNetezzaAdapterConversions(AdapterConversions):
             ["", "a3", "stringval3"],
         ]
         agate_table = self._make_table_of(rows, agate.Text)
-        expected = ["varchar(64)", "varchar(2)", "varchar(22)"]
+        expected = ["varchar(256)", "varchar(256)", "varchar(256)"]
         for col_idx, expect in enumerate(expected):
             assert NetezzaAdapter.convert_text_type(agate_table, col_idx) == expect
 

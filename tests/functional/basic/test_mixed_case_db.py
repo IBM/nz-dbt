@@ -1,3 +1,5 @@
+import os
+
 from dbt.tests.util import get_manifest
 import pytest
 
@@ -14,29 +16,9 @@ def models():
     return {"model.sql": model_sql}
 
 
-@pytest.fixture(scope="class")
-def dbt_profile_data(unique_schema):
-    return {
-        "test": {
-            "outputs": {
-                "default": {
-                    "type": "netezza",
-                    "threads": 4,
-                    "host": "ssnzlite1.fyre.ibm.com",
-                    "port": 5480,
-                    "user": "ADMIN",
-                    "pass": "password",
-                    "dbname": "TESTDBTINTEGRATION",
-                    "schema": unique_schema,
-                },
-            },
-            "target": "default",
-        },
-    }
-
-
 def test_basic(project_root, project):
-    assert project.database == "TESTDBTINTEGRATION"
+    # Verify database name matches the configured value (mixed-case handling)
+    assert project.database == os.getenv("NZ_TEST_DATABASE", "TESTDBTINTEGRATION")
 
     # Tests that a project with a single model works
     results = run_dbt(["run"])

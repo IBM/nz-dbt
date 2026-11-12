@@ -13,11 +13,11 @@ class NetezzaPath(Path):
         elif key == ComponentName.Schema:
             if self.schema is None:
                 return None
-            return self.schema
+            return self.schema.replace('"', "")
         elif key == ComponentName.Identifier:
             if self.identifier is None:
                 return None
-            return self.identifier
+            return self.identifier.replace('"', "")
         else:
             raise ValueError(
                 "Got a key of {}, expected one of {}".format(key, list(ComponentName))
@@ -34,13 +34,17 @@ class NetezzaQuotePolicy(Policy):
 class NetezzaRelation(BaseRelation):
     path: NetezzaPath
     quote_policy: Policy = field(default_factory=lambda: NetezzaQuotePolicy())
+    require_alias: bool = True
 
     def _is_exactish_match(self, field: ComponentName, value: str) -> bool:
         # Remove requirement for dbt_created due to dbt bug with cache preservation
         # of that property
         if self.quote_policy.get_part(field) is False:
+            # Unquoted: Netezza stores UPPERCASE, dbt uses lowercase — compare case-insensitively
             return self.path.get_lowered_part(field) == value.lower()
         else:
+            # Quoted: identifiers are case-preserved in DDL and stored exactly as written.
+            # Compare case-sensitively so "MyTable" != "mytable".
             return self.path.get_part(field) == value.replace('"', "")
 
     @staticmethod
@@ -63,7 +67,7 @@ Info = TypeVar("Info", bound="NetezzaInformationSchema")
 class NetezzaInformationSchema(InformationSchema):
     @classmethod
     def get_path(cls, relation: NetezzaRelation, information_schema_view: Optional[str]) -> NetezzaPath:
-        return Path(
+        return NetezzaPath(
             database=relation.database.replace('"', ""),
             schema=relation.schema,
             identifier="INFORMATION_SCHEMA",

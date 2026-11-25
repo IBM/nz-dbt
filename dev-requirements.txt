@@ -8,7 +8,7 @@ dbt-tests-adapter~=1.20.0
 black==25.11.0
 bumpversion==0.6.0
 click==8.3.1
-ddtrace==4.3.1
+ddtrace==4.15.6
 flake8==7.3.0
 flaky==3.8.1
 freezegun==1.5.5

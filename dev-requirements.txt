@@ -5,7 +5,7 @@ dbt-extractor~=0.5.1
 dbt-semantic-interfaces~=0.9.0
 dbt-tests-adapter~=1.20.0
 
-black==25.11.0
+black==26.10.1
 bumpversion==0.6.0
 click==8.3.1
 ddtrace==4.15.6
